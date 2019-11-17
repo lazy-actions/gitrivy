@@ -140,12 +140,12 @@ export class Trivy {
 
       issueContent += `## ${vuln.Target}\n`
       let vulnTable: string = '|Title|Severity|CVE|Package Name|'
-      vulnTable += 'Installed Version|Fixed Version|Description|References|\n'
-      vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|:--|\n'
+      vulnTable += 'Installed Version|Fixed Version|References|\n'
+      vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|\n'
 
       for (const cve of vuln.Vulnerabilities) {
         vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.PkgName}`
-        vulnTable += `|${cve.InstalledVersion}|${cve.FixedVersion}|${cve.Description}|`
+        vulnTable += `|${cve.InstalledVersion}|${cve.FixedVersion}|`
 
         for (const reference of cve.References) {
           vulnTable += `${reference}<br>`
