@@ -91,11 +91,10 @@ export class Downloader {
 
   private extractTrivyCmd(targetFile: string, outputDir?: string): string {
     const baseDir: string = outputDir === undefined ? __dirname : outputDir
-    const filepath: string = `${baseDir}/${path.basename(targetFile)}`
 
     fs.createReadStream(targetFile)
       .pipe(zlib.createGunzip())
-      .pipe(tar.Extract({ path: filepath }))
+      .pipe(tar.Extract({ path: baseDir }))
 
     const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
 
