@@ -2,9 +2,10 @@ import Octokit, {
   ReposGetLatestReleaseResponse
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
-import axios, { AxiosResponse, AxiosPromise } from 'axios'
+import axios, { AxiosResponse } from 'axios'
 import fs from 'fs'
 import tar from 'tar'
+import zlib from 'zlib'
 
 import { TrivyOption, Vulnerability } from './interface'
 import { Stream } from 'stream'
@@ -29,11 +30,11 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    const trivyPath: string = `${__dirname}/trivy.tgz`
+    const trivyPath: string = `${__dirname}/trivy.tar.gz`
     const writer: fs.WriteStream = fs.createWriteStream(trivyPath)
     const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
     response.data.pipe(writer)
-    const trivyCmdPath: string = this.extractTrivyCmd('trivy.tgz', '/usr/local/bin')
+    const trivyCmdPath: string = this.extractTrivyCmd(trivyPath, '/usr/local/bin')
     return trivyCmdPath
   }
 
@@ -90,7 +91,6 @@ export class Downloader {
   private extractTrivyCmd(targetFile: string, outputDir?: string): string {
     let baseDir: string = __dirname
     const options: object = {
-      file: targetFile,
       sync: true,
     }
 
@@ -99,7 +99,7 @@ export class Downloader {
       options['C'] = outputDir
     }
 
-    tar.x(options)
+    fs.createReadStream(targetFile).pipe(zlib.createGunzip()).pipe(tar.x(options))
     const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
 
     if (trivyCmdPath.length !== 1) {
