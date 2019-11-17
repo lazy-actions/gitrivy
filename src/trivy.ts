@@ -20,7 +20,7 @@ export class Downloader extends Octokit {
   };
 
   constructor(token: string) {
-    super({ auth: token });
+    super({ auth: `token ${token}` });
   }
 
   public async download(version: string): Promise<string> {
