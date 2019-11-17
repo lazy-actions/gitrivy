@@ -15786,16 +15786,19 @@ class Downloader extends rest_1.default {
         }
     }
     getDownloadUrl(version, os) {
+        const _super = Object.create(null, {
+            repos: { get: () => super.repos }
+        });
         var e_1, _a;
         return __awaiter(this, void 0, void 0, function* () {
             const filename = `trivy_${version}_${os}-64bit.tar.gz`;
             let response;
             try {
                 if (version === 'latest') {
-                    response = yield this.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
+                    response = yield _super.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
                 }
                 else {
-                    response = yield this.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
+                    response = yield _super.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
                 }
             }
             catch (error) {

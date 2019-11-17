@@ -55,11 +55,11 @@ export class Downloader extends Octokit {
 
     try {
       if (version === 'latest') {
-        response = await this.repos.getLatestRelease({
+        response = await super.repos.getLatestRelease({
           ...Downloader.trivyRepository
         })
       } else {
-        response = await this.repos.getReleaseByTag({
+        response = await super.repos.getReleaseByTag({
           ...Downloader.trivyRepository,
           tag: `v${version}`
         })
@@ -157,10 +157,8 @@ export class Trivy {
 
         vulnTable.replace(/<br>$/, '|\n')
       }
-
       issueContent += `${vulnTable}<br><br>`
     }
-
     return issueContent
   }
 }
