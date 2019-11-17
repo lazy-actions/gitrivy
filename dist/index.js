@@ -15765,7 +15765,7 @@ class Downloader {
             const downloadUrl = yield this.getDownloadUrl(version, os);
             const trivyPath = `${__dirname}/trivy.tar.gz`;
             const writer = fs_1.default.createWriteStream(trivyPath);
-            const response = yield axios_1.default.get(downloadUrl);
+            const response = yield axios_1.default.get(downloadUrl, { responseType: 'stream' });
             response.data.pipe(writer);
             const trivyCmdPath = this.extractTrivyCmd(trivyPath, '/usr/local/bin');
             return trivyCmdPath;

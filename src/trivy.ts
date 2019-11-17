@@ -2,11 +2,12 @@ import Octokit, {
   ReposGetLatestReleaseResponse
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
-import axios, { AxiosResponse } from 'axios'
+import axios, { AxiosResponse, AxiosPromise } from 'axios'
 import fs from 'fs'
 import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
+import { Stream } from 'stream'
 
 interface Repository {
   owner: string,
@@ -30,7 +31,7 @@ export class Downloader {
     const downloadUrl: string = await this.getDownloadUrl(version, os)
     const trivyPath: string = `${__dirname}/trivy.tar.gz`
     const writer: fs.WriteStream = fs.createWriteStream(trivyPath)
-    const response: AxiosResponse = await axios.get(downloadUrl)
+    const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
     response.data.pipe(writer)
     const trivyCmdPath: string = this.extractTrivyCmd(trivyPath, '/usr/local/bin')
     return trivyCmdPath
