@@ -33,7 +33,7 @@ export class Downloader {
     const writer: fs.WriteStream = fs.createWriteStream(trivyPath)
     const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
     response.data.pipe(writer)
-    const trivyCmdPath: string = this.extractTrivyCmd(trivyPath, '/usr/local/bin')
+    const trivyCmdPath: string = this.extractTrivyCmd('trivy.tgz', '/usr/local/bin')
     return trivyCmdPath
   }
 

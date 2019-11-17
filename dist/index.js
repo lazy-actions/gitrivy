@@ -15767,7 +15767,7 @@ class Downloader {
             const writer = fs_1.default.createWriteStream(trivyPath);
             const response = yield axios_1.default.get(downloadUrl, { responseType: 'stream' });
             response.data.pipe(writer);
-            const trivyCmdPath = this.extractTrivyCmd(trivyPath, '/usr/local/bin');
+            const trivyCmdPath = this.extractTrivyCmd('trivy.tgz', '/usr/local/bin');
             return trivyCmdPath;
         });
     }
