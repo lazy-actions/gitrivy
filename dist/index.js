@@ -15757,10 +15757,6 @@ const tar_1 = __importDefault(__webpack_require__(885));
 class Downloader extends rest_1.default {
     constructor(token) {
         super({ auth: `token ${token}` });
-        this.trivyRepository = {
-            owner: 'aquasecurity',
-            repo: 'trivy'
-        };
     }
     download(version) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -15795,10 +15791,10 @@ class Downloader extends rest_1.default {
             let response;
             try {
                 if (version === 'latest') {
-                    response = yield this.repos.getLatestRelease(Object.assign({}, this.trivyRepository));
+                    response = yield this.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
                 }
                 else {
-                    response = yield this.repos.getReleaseByTag(Object.assign(Object.assign({}, this.trivyRepository), { tag: `v${version}` }));
+                    response = yield this.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
                 }
             }
             catch (error) {
@@ -15848,6 +15844,10 @@ class Downloader extends rest_1.default {
     }
 }
 exports.Downloader = Downloader;
+Downloader.trivyRepository = {
+    owner: 'aquasecurity',
+    repo: 'trivy'
+};
 class Trivy {
     static scan(trivyPath, image, options) {
         const args = [

@@ -14,7 +14,7 @@ interface Repository {
 }
 
 export class Downloader extends Octokit {
-  private readonly trivyRepository: Repository = {
+  static readonly trivyRepository: Repository = {
     owner: 'aquasecurity',
     repo: 'trivy'
   };
@@ -54,11 +54,11 @@ export class Downloader extends Octokit {
     try {
       if (version === 'latest') {
         response = await this.repos.getLatestRelease({
-          ...this.trivyRepository
+          ...Downloader.trivyRepository
         });
       } else {
         response = await this.repos.getReleaseByTag({
-          ...this.trivyRepository,
+          ...Downloader.trivyRepository,
           tag: `v${version}`
         })
       }
