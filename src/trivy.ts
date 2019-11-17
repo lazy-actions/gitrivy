@@ -1,63 +1,77 @@
 import Octokit, {
   ReposGetLatestReleaseResponse
-} from '@octokit/rest';
-import { spawnSync, SpawnSyncReturns } from 'child_process';
-import axios, { AxiosResponse } from 'axios';
-import fs from 'fs';
-import tar from 'tar';
+} from '@octokit/rest'
+import { spawnSync, SpawnSyncReturns } from 'child_process'
+import fs from 'fs'
 
-import { TrivyOption, Vulnerability } from './interface';
+import { TrivyOption, Vulnerability } from './interface'
 
 interface Repository {
   owner: string,
   repo: string
 }
 
-export class Downloader extends Octokit {
+export class Downloader {
+  githubClient: Octokit
+
   static readonly trivyRepository: Repository = {
     owner: 'aquasecurity',
     repo: 'trivy'
-  };
+  }
 
-  constructor(token: string, opts: Omit<Octokit.Options, 'auth'> = {}) {
-    super({...opts, auth: `token ${token}` });
+  constructor(token: string) {
+    this.githubClient = new Octokit({ auth: `token ${token}` })
   }
 
   public async download(version: string): Promise<string> {
-    const os: string = this.checkPlatform(process.platform);
-    const downloadUrl: string = await this.getDownloadUrl(version, os);
-    const trivyPath: string = `${__dirname}/trivy.tar.gz`;
-    const writer: fs.WriteStream = fs.createWriteStream(trivyPath);
-    const response: AxiosResponse = await axios.get(downloadUrl);
-    response.data.pipe(writer)
-    const trivyCmdPath: string = this.extractTrivyCmd(trivyPath, '/usr/local/bin');
-    return trivyCmdPath;
+    const os: string = this.checkPlatform(process.platform)
+    const downloadUrl: string = await this.getDownloadUrl(version, os)
+    console.log(downloadUrl)
+    const trivyCompressedPath: string = `${__dirname}/trivy.tar.gz`
+    let result = spawnSync(
+      'curl',
+      ['-Lo', trivyCompressedPath, downloadUrl],
+      { encoding: 'utf-8' }
+    )
+    if (result.error) throw result.error
+
+    result = spawnSync(
+      'tar',
+      ['xzf', trivyCompressedPath],
+      { encoding: 'utf-8' }
+    )
+    if (result.error) throw result.error
+
+    if (!this.trivyExists('.')) {
+      throw new Error('Failed to extract Trivy command file.')
+    }
+
+    return './trivy'
   }
 
   private checkPlatform(platform: string): string {
     if (platform === 'linux') {
-      return 'Linux';
+      return 'Linux'
     } else if (platform === 'darwin') {
-      return 'macOS';
+      return 'macOS'
     } else {
-      throw new Error(`
-        Sorry, ${platform} is not supported.
-        Trivy support Linux, MacOS, FreeBSD and OpenBSD.
-      `);
+      throw new Error(`Sorry, ${platform} is not supported.
+      Trivy support Linux, MacOS, FreeBSD and OpenBSD.
+      `)
     }
   }
 
   private async getDownloadUrl(version: string, os: string): Promise<string> {
-    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`
-    let response: Octokit.Response<ReposGetLatestReleaseResponse>;
+    let response: Octokit.Response<ReposGetLatestReleaseResponse>
 
     try {
       if (version === 'latest') {
-        response = await this.repos.getLatestRelease({
+        response = await this.githubClient.repos.getLatestRelease({
           ...Downloader.trivyRepository
-        });
+        })
+        version = response.data.tag_name.replace(/v/, '')
       } else {
-        response = await this.repos.getReleaseByTag({
+        response = await this.githubClient.repos.getReleaseByTag({
           ...Downloader.trivyRepository,
           tag: `v${version}`
         })
@@ -69,39 +83,24 @@ export class Downloader extends Octokit {
       `)
     }
 
+    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`
+
     for await (const asset of response.data.assets) {
       if (asset.name === filename) {
-        return asset.browser_download_url;
+        return asset.browser_download_url
       }
     }
 
-    throw new Error(`
-      Cloud not be found Trivy asset that You specified.
-      Version: ${version}
-      OS: ${os}
+    throw new Error(`Cloud not be found Trivy asset that You specified.
+    Version: ${version}
+    OS: ${os}
     `)
   }
 
-  private extractTrivyCmd(targetFile: string, outputDir?: string): string {
-    let baseDir: string = __dirname;
-    const options: object = {
-      file: targetFile,
-      sync: true,
-    };
-
-    if (outputDir !== undefined) {
-      baseDir = outputDir;
-      options['C'] = outputDir;
-    }
-
-    tar.x(options);
-    const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy');
-
-    if (trivyCmdPath.length !== 1) {
-      throw new Error('Failed to extract Trivy command file.');
-    }
-
-    return trivyCmdPath[0];
+  trivyExists(baseDir: string): boolean {
+    const trivyCmdPaths: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
+    console.log(trivyCmdPaths)
+    return trivyCmdPaths.length === 1
   }
 }
 
@@ -116,49 +115,47 @@ export class Trivy {
     ]
 
     if (options.ignoreUnfixed) {
-      args.push('--ignore-unfixed');
+      args.push('--ignore-unfixed')
     }
 
-    args.push(image);
-    const result: SpawnSyncReturns<string> = spawnSync(trivyPath, args, { encoding: 'utf-8' });
-    const stdout: string = result.stdout;
+    args.push(image)
+    const result: SpawnSyncReturns<string> = spawnSync(trivyPath, args, { encoding: 'utf-8' })
 
-    if (stdout && stdout.length > 0) {
-      return JSON.parse(stdout);
+    if (result.stdout && result.stdout.length > 0) {
+      return JSON.parse(result.stdout)
     }
 
-    throw new Error(`
-      Failed vulnerability scan using Trivy.
-      stderr: ${result.stderr}
+    throw new Error(`Failed vulnerability scan using Trivy.
+    stdout: ${result.stdout}
+    stderr: ${result.stderr}
+    erorr: ${result.error}
     `)
   }
 
   static parse(vulnerabilities: Vulnerability[]): string {
-    let issueContent: string = '';
+    let issueContent: string = ''
 
     for (const vuln of vulnerabilities) {
-      if (vuln.Vulnerabilities === null) continue;
+      if (vuln.Vulnerabilities === null) continue
 
-      issueContent += `## ${vuln.Target}`;
-      let vulnTable: string = `
-      |Title|Severity|CVE|Description|Package Name|Installed Version|Fixed Version|References|
-      |:--:|:--:|:--:|:--|:--:|:--:|:--:|:--|
-      `;
+      issueContent += `## ${vuln.Target}\n`
+      let vulnTable: string = '|Title|Severity|CVE|Package Name|'
+      vulnTable += 'Installed Version|Fixed Version|References|\n'
+      vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|\n'
 
       for (const cve of vuln.Vulnerabilities) {
-        vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.Description}`
-        vulnTable += `|${cve.PkgName}|${cve.InstalledVersion}|${cve.FixedVersion}|`
+        vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.PkgName}`
+        vulnTable += `|${cve.InstalledVersion}|${cve.FixedVersion}|`
 
-        for (const reference in cve.References) {
+        for (const reference of cve.References) {
           vulnTable += `${reference}<br>`
         }
 
-        vulnTable.replace(/<br>$/, '|\n');
+        vulnTable.replace(/<br>$/, '|\n')
       }
-
-      issueContent += `${vulnTable}<br><br>`
+      issueContent += `${vulnTable}\n\n`
     }
-
-    return issueContent;
+    console.log(issueContent)
+    return issueContent
   }
 }

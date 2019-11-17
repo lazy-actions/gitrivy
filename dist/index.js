@@ -8199,6 +8199,7 @@ function run() {
             core.setOutput('issue_number', output.issueNumber.toString());
         }
         catch (error) {
+            core.error(error.stack);
             core.setFailed(error.message);
         }
     });
@@ -15754,20 +15755,29 @@ const child_process_1 = __webpack_require__(129);
 const axios_1 = __importDefault(__webpack_require__(53));
 const fs_1 = __importDefault(__webpack_require__(747));
 const tar_1 = __importDefault(__webpack_require__(885));
-class Downloader extends rest_1.default {
-    constructor(token, opts = {}) {
-        super(Object.assign(Object.assign({}, opts), { auth: `token ${token}` }));
+const zlib_1 = __importDefault(__webpack_require__(761));
+class Downloader {
+    constructor(token) {
+        this.githubClient = new rest_1.default({ auth: `token ${token}` });
     }
     download(version) {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
-            const trivyPath = `${__dirname}/trivy.tar.gz`;
-            const writer = fs_1.default.createWriteStream(trivyPath);
-            const response = yield axios_1.default.get(downloadUrl);
-            response.data.pipe(writer);
-            const trivyCmdPath = this.extractTrivyCmd(trivyPath, '/usr/local/bin');
-            return trivyCmdPath;
+            const trivyBaseDir = '/usr/local/bin';
+            const axiosOptions = {
+                headers: { Accept: 'application/octet-stream' },
+                responseType: 'stream'
+            };
+            const response = yield axios_1.default.get(downloadUrl, axiosOptions);
+            const writer = fs_1.default.createWriteStream('trivy.tar.gz');
+            response.data.pipe(writer)
+                .pipe(zlib_1.default.createGunzip())
+                .pipe(tar_1.default.x({ C: trivyBaseDir }, ['trivy']));
+            if (this.trivyExists(trivyBaseDir) === false) {
+                throw new Error('Failed to extract Trivy command file.');
+            }
+            return `${trivyBaseDir}/trivy`;
         });
     }
     checkPlatform(platform) {
@@ -15787,14 +15797,14 @@ class Downloader extends rest_1.default {
     getDownloadUrl(version, os) {
         var e_1, _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const filename = `trivy_${version}_${os}-64bit.tar.gz`;
             let response;
             try {
                 if (version === 'latest') {
-                    response = yield this.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
+                    response = yield this.githubClient.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
+                    version = response.data.tag_name.replace(/v/, '');
                 }
                 else {
-                    response = yield this.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
+                    response = yield this.githubClient.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
                 }
             }
             catch (error) {
@@ -15803,6 +15813,7 @@ class Downloader extends rest_1.default {
         Version: ${version}
       `);
             }
+            const filename = `trivy_${version}_${os}-64bit.tar.gz`;
             try {
                 for (var _b = __asyncValues(response.data.assets), _c; _c = yield _b.next(), !_c.done;) {
                     const asset = _c.value;
@@ -15825,22 +15836,10 @@ class Downloader extends rest_1.default {
     `);
         });
     }
-    extractTrivyCmd(targetFile, outputDir) {
-        let baseDir = __dirname;
-        const options = {
-            file: targetFile,
-            sync: true,
-        };
-        if (outputDir !== undefined) {
-            baseDir = outputDir;
-            options['C'] = outputDir;
-        }
-        tar_1.default.x(options);
-        const trivyCmdPath = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
-        if (trivyCmdPath.length !== 1) {
-            throw new Error('Failed to extract Trivy command file.');
-        }
-        return trivyCmdPath[0];
+    trivyExists(baseDir) {
+        const trivyCmdPaths = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
+        console.debug(trivyCmdPaths);
+        return trivyCmdPaths.length === 1;
     }
 }
 exports.Downloader = Downloader;
@@ -15862,13 +15861,14 @@ class Trivy {
         }
         args.push(image);
         const result = child_process_1.spawnSync(trivyPath, args, { encoding: 'utf-8' });
-        const stdout = result.stdout;
-        if (stdout && stdout.length > 0) {
-            return JSON.parse(stdout);
+        if (result.stdout && result.stdout.length > 0) {
+            return JSON.parse(result.stdout);
         }
         throw new Error(`
       Failed vulnerability scan using Trivy.
+      stdout: ${result.stdout}
       stderr: ${result.stderr}
+      erorr: ${result.error}
     `);
     }
     static parse(vulnerabilities) {
