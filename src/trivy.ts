@@ -2,10 +2,7 @@ import Octokit, {
   ReposGetLatestReleaseResponse
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
-import fetch from 'node-fetch'
 import fs from 'fs'
-import zlib from 'zlib'
-import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
 
@@ -144,11 +141,11 @@ export class Trivy {
       issueContent += `## ${vuln.Target}\n`
       let vulnTable: string = '|Title|Severity|CVE|Package Name|'
       vulnTable += 'Installed Version|Fixed Version|Description|References|\n'
-      vulnTable += '|:--:|:--:|:--:|:--|:--:|:--:|:--:|:--|\n'
+      vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|:--|\n'
 
       for (const cve of vuln.Vulnerabilities) {
         vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.PkgName}`
-        vulnTable += `|${cve.InstalledVersion}|${cve.Description}|${cve.FixedVersion}|`
+        vulnTable += `|${cve.InstalledVersion}|${cve.FixedVersion}|${cve.Description}|`
 
         for (const reference of cve.References) {
           vulnTable += `${reference}<br>`
