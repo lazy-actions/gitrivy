@@ -29,7 +29,7 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    const trivyPath: string = `${__dirname}/trivy.tar.gz`
+    const trivyPath: string = `${__dirname}/trivy.tgz`
     const writer: fs.WriteStream = fs.createWriteStream(trivyPath)
     const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
     response.data.pipe(writer)

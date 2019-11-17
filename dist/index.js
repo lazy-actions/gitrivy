@@ -15763,7 +15763,7 @@ class Downloader {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
-            const trivyPath = `${__dirname}/trivy.tar.gz`;
+            const trivyPath = `${__dirname}/trivy.tgz`;
             const writer = fs_1.default.createWriteStream(trivyPath);
             const response = yield axios_1.default.get(downloadUrl, { responseType: 'stream' });
             response.data.pipe(writer);
