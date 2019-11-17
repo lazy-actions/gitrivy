@@ -15788,11 +15788,11 @@ class Downloader {
     getDownloadUrl(version, os) {
         var e_1, _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const filename = `trivy_${version}_${os}-64bit.tar.gz`;
             let response;
             try {
                 if (version === 'latest') {
                     response = yield this.githubClient.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
+                    version = response.data.tag_name.replace(/v/, '');
                 }
                 else {
                     response = yield this.githubClient.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
@@ -15804,6 +15804,7 @@ class Downloader {
         Version: ${version}
       `);
             }
+            const filename = `trivy_${version}_${os}-64bit.tar.gz`;
             try {
                 for (var _b = __asyncValues(response.data.assets), _c; _c = yield _b.next(), !_c.done;) {
                     const asset = _c.value;
