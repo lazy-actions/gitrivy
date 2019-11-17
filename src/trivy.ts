@@ -19,8 +19,8 @@ export class Downloader extends Octokit {
     repo: 'trivy'
   };
 
-  constructor(token: string) {
-    super({ auth: `token ${token}` });
+  constructor(token: string, opts: Omit<Octokit.Options, 'auth'> = {}) {
+    super({...opts, auth: `token ${token}` });
   }
 
   public async download(version: string): Promise<string> {
