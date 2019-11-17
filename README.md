@@ -7,6 +7,27 @@ This is a GitHub Actions to scan vulnerability using [Trivy](https://github.com/
 
 ## Usage
 
+### Inputs
+
+|Parameter|Required|Default|Description|
+|:--:|:--:|:--:|:--|
+|token|True|N/A|GitHub access token<br>${{ secrets.GITHUB_TOKEN }} is recommended|
+|trivy_version|False|latest|Trivy version|
+|image|True|N/A|The target image name to scan the vulnerability|
+|severity|False|HIGH,CRITICAL|Sevirities of vulunerabilities (separeted by commma)|
+|vuln_type|False|os,library|Scan target are os and / or library (separeted by commma)|
+|ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Specify true or false|
+|issue_title|False|Security Alert|Issue title|
+|issue_label|False|trivy,vulnerability|Issue label (separeted by commma)|
+|issue_assignee|False|N/A|Issue assignee (separeted by commma)|
+
+### Outputs
+
+|Parameter|Description|
+|:--:|:--|
+|html_url|The URL to view the issue|
+|issue_number|The created issue number|
+
 ## Example Workflow
 
 Detect your docker image vulnerability everyday at 9:00 (UTC).
@@ -28,5 +49,6 @@ jobs:
 
       - uses: homoluctus/gitrivy@v0.0.1
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           image: sample
 ```
