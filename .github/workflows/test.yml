@@ -1,0 +1,28 @@
+name: Test my typescript action
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v1
+
+    # - name: Test
+    #   run: npm run test
+
+    - name: Build
+      run: npm run build
+
+    - name: Pull docker image
+      run: docker pull alpine:3.10.3
+
+    - uses: ./
+      with:
+        token: ${{ github.GITHUB_TOKEN }}
+        image: alpine:3.10.3
