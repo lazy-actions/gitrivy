@@ -50,7 +50,6 @@ export class Downloader {
   }
 
   private async getDownloadUrl(version: string, os: string): Promise<string> {
-    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`
     let response: Octokit.Response<ReposGetLatestReleaseResponse>
 
     try {
@@ -58,6 +57,7 @@ export class Downloader {
         response = await this.githubClient.repos.getLatestRelease({
           ...Downloader.trivyRepository
         })
+        version = response.data.tag_name.replace(/v/, '')
       } else {
         response = await this.githubClient.repos.getReleaseByTag({
           ...Downloader.trivyRepository,
@@ -70,6 +70,8 @@ export class Downloader {
         Version: ${version}
       `)
     }
+
+    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`
 
     for await (const asset of response.data.assets) {
       if (asset.name === filename) {
