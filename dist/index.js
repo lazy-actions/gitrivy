@@ -15754,9 +15754,10 @@ const child_process_1 = __webpack_require__(129);
 const axios_1 = __importDefault(__webpack_require__(53));
 const fs_1 = __importDefault(__webpack_require__(747));
 const tar_1 = __importDefault(__webpack_require__(885));
+rest_1.default.prototype = new rest_1.default();
 class Downloader extends rest_1.default {
-    constructor(token) {
-        super({ auth: `token ${token}` });
+    constructor(token, opts = {}) {
+        super(Object.assign(Object.assign({}, opts), { auth: `token ${token}` }));
     }
     download(version) {
         return __awaiter(this, void 0, void 0, function* () {
