@@ -15756,6 +15756,7 @@ const axios_1 = __importDefault(__webpack_require__(53));
 const fs_1 = __importDefault(__webpack_require__(747));
 const tar_1 = __importDefault(__webpack_require__(885));
 const zlib_1 = __importDefault(__webpack_require__(761));
+const path_1 = __importDefault(__webpack_require__(622));
 class Downloader {
     constructor(token) {
         this.githubClient = new rest_1.default({ auth: `token ${token}` });
@@ -15829,15 +15830,11 @@ class Downloader {
         });
     }
     extractTrivyCmd(targetFile, outputDir) {
-        let baseDir = __dirname;
-        const options = {
-            sync: true,
-        };
-        if (outputDir !== undefined) {
-            baseDir = outputDir;
-            options['C'] = outputDir;
-        }
-        fs_1.default.createReadStream(targetFile).pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.x(options));
+        const baseDir = outputDir === undefined ? __dirname : outputDir;
+        const filepath = `${baseDir}/${path_1.default.basename(targetFile)}`;
+        fs_1.default.createReadStream(targetFile)
+            .pipe(zlib_1.default.createGunzip())
+            .pipe(tar_1.default.Extract({ path: filepath }));
         const trivyCmdPath = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
         if (trivyCmdPath.length !== 1) {
             throw new Error('Failed to extract Trivy command file.');

@@ -6,6 +6,7 @@ import axios, { AxiosResponse } from 'axios'
 import fs from 'fs'
 import tar from 'tar'
 import zlib from 'zlib'
+import path from 'path'
 
 import { TrivyOption, Vulnerability } from './interface'
 import { Stream } from 'stream'
@@ -89,17 +90,13 @@ export class Downloader {
   }
 
   private extractTrivyCmd(targetFile: string, outputDir?: string): string {
-    let baseDir: string = __dirname
-    const options: object = {
-      sync: true,
-    }
+    const baseDir: string = outputDir === undefined ? __dirname : outputDir
+    const filepath: string = `${baseDir}/${path.basename(targetFile)}`
 
-    if (outputDir !== undefined) {
-      baseDir = outputDir
-      options['C'] = outputDir
-    }
+    fs.createReadStream(targetFile)
+      .pipe(zlib.createGunzip())
+      .pipe(tar.Extract({ path: filepath }))
 
-    fs.createReadStream(targetFile).pipe(zlib.createGunzip()).pipe(tar.x(options))
     const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
 
     if (trivyCmdPath.length !== 1) {
