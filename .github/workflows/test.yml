@@ -24,5 +24,12 @@ jobs:
 
     - uses: ./
       with:
-        token: ${{ github.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
         image: alpine:3.10.3
+
+    - uses: homoluctus/slatify@1.9.0
+      with:
+        type: ${{ job.status }}
+        job_name: ':ts: *test gitrivy*'
+        channel: '#develop'
+        url: ${{ secrets.SLACK_WEBHOOK }}
