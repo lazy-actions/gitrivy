@@ -6,7 +6,6 @@ import axios, { AxiosResponse } from 'axios'
 import fs from 'fs'
 import tar from 'tar'
 import zlib from 'zlib'
-import path from 'path'
 
 import { TrivyOption, Vulnerability } from './interface'
 import { Stream } from 'stream'
@@ -31,12 +30,15 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    const trivyPath: string = `${__dirname}/trivy.tar.gz`
-    const writer: fs.WriteStream = fs.createWriteStream(trivyPath)
+    const trivyBaseDir: string = '/usr/local/bin'
     const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
-    response.data.pipe(writer)
-    const trivyCmdPath: string = this.extractTrivyCmd(trivyPath, '/usr/local/bin')
-    return trivyCmdPath
+    response.data.pipe(zlib.createGunzip()).pipe(tar.Extract({ path: trivyBaseDir }))
+
+    if (this.trivyExists(trivyBaseDir) === false) {
+      throw new Error('Failed to extract Trivy command file.')
+    }
+
+    return `${trivyBaseDir}/trivy`
   }
 
   private checkPlatform(platform: string): string {
@@ -89,21 +91,26 @@ export class Downloader {
     `)
   }
 
-  private extractTrivyCmd(targetFile: string, outputDir?: string): string {
-    const baseDir: string = outputDir === undefined ? __dirname : outputDir
-
-    fs.createReadStream(targetFile)
-      .pipe(zlib.createGunzip())
-      .pipe(tar.Extract({ path: baseDir }))
-
-    const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
-
-    if (trivyCmdPath.length !== 1) {
-      throw new Error('Failed to extract Trivy command file.')
-    }
-
-    return trivyCmdPath[0]
+  trivyExists(baseDir: string): boolean {
+    const trivyCmdPaths: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
+    return trivyCmdPaths.length === 1 ? true : false
   }
+
+  // private extractTrivyCmd(targetFile: string, outputDir?: string): string {
+  //   const baseDir: string = outputDir === undefined ? __dirname : outputDir
+
+  //   fs.createReadStream(targetFile)
+  //     .pipe(zlib.createGunzip())
+  //     .pipe(tar.Extract({ path: baseDir }))
+
+  //   const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
+
+  //   if (trivyCmdPath.length !== 1) {
+  //     throw new Error('Failed to extract Trivy command file.')
+  //   }
+
+  //   return trivyCmdPath[0]
+  // }
 }
 
 export class Trivy {

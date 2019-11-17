@@ -15764,12 +15764,13 @@ class Downloader {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
-            const trivyPath = `${__dirname}/trivy.tar.gz`;
-            const writer = fs_1.default.createWriteStream(trivyPath);
+            const trivyBaseDir = '/usr/local/bin';
             const response = yield axios_1.default.get(downloadUrl, { responseType: 'stream' });
-            response.data.pipe(writer);
-            const trivyCmdPath = this.extractTrivyCmd(trivyPath, '/usr/local/bin');
-            return trivyCmdPath;
+            response.data.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.Extract({ path: trivyBaseDir }));
+            if (this.trivyExists(trivyBaseDir) === false) {
+                throw new Error('Failed to extract Trivy command file.');
+            }
+            return `${trivyBaseDir}/trivy`;
         });
     }
     checkPlatform(platform) {
@@ -15828,16 +15829,9 @@ class Downloader {
     `);
         });
     }
-    extractTrivyCmd(targetFile, outputDir) {
-        const baseDir = outputDir === undefined ? __dirname : outputDir;
-        fs_1.default.createReadStream(targetFile)
-            .pipe(zlib_1.default.createGunzip())
-            .pipe(tar_1.default.Extract({ path: baseDir }));
-        const trivyCmdPath = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
-        if (trivyCmdPath.length !== 1) {
-            throw new Error('Failed to extract Trivy command file.');
-        }
-        return trivyCmdPath[0];
+    trivyExists(baseDir) {
+        const trivyCmdPaths = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
+        return trivyCmdPaths.length === 1 ? true : false;
     }
 }
 exports.Downloader = Downloader;
