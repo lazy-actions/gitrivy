@@ -42,7 +42,7 @@ async function run() {
     core.setOutput('issue_number', output.issueNumber.toString())
 
   } catch (error) {
-    core.debug(error.stack)
+    core.error(error.stack)
     core.setFailed(error.message)
   }
 }
