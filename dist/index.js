@@ -15766,7 +15766,7 @@ class Downloader {
             const downloadUrl = yield this.getDownloadUrl(version, os);
             const trivyBaseDir = '/usr/local/bin';
             const response = yield axios_1.default.get(downloadUrl, { responseType: 'stream' });
-            response.data.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.Extract({ path: trivyBaseDir }));
+            response.data.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.extract({ path: trivyBaseDir }));
             if (this.trivyExists(trivyBaseDir) === false) {
                 throw new Error('Failed to extract Trivy command file.');
             }

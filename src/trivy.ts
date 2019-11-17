@@ -32,7 +32,7 @@ export class Downloader {
     const downloadUrl: string = await this.getDownloadUrl(version, os)
     const trivyBaseDir: string = '/usr/local/bin'
     const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
-    response.data.pipe(zlib.createGunzip()).pipe(tar.Extract({ path: trivyBaseDir }))
+    response.data.pipe(zlib.createGunzip()).pipe(tar.extract({ path: trivyBaseDir }))
 
     if (this.trivyExists(trivyBaseDir) === false) {
       throw new Error('Failed to extract Trivy command file.')
