@@ -2,13 +2,12 @@ import Octokit, {
   ReposGetLatestReleaseResponse
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
-import axios, { AxiosResponse } from 'axios'
+import fetch from 'node-fetch'
 import fs from 'fs'
-import tar from 'tar'
 import zlib from 'zlib'
+import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
-import { Stream } from 'stream'
 
 interface Repository {
   owner: string,
@@ -30,15 +29,27 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    const trivyBaseDir: string = '/usr/local/bin'
-    const response: AxiosResponse<Stream> = await axios.get(downloadUrl, { responseType: 'stream' })
-    response.data.pipe(zlib.createGunzip()).pipe(tar.extract({ path: trivyBaseDir }))
+    console.log(downloadUrl)
+    const trivyCompressedPath: string = `${__dirname}/trivy.tar.gz`
+    let result = spawnSync(
+      'curl',
+      ['-Lo', trivyCompressedPath, downloadUrl],
+      { encoding: 'utf-8' }
+    )
+    if (result.error) throw result.error
 
-    if (this.trivyExists(trivyBaseDir) === false) {
+    result = spawnSync(
+      'tar',
+      ['xzf', trivyCompressedPath],
+      { encoding: 'utf-8' }
+    )
+    if (result.error) throw result.error
+
+    if (!this.trivyExists('.')) {
       throw new Error('Failed to extract Trivy command file.')
     }
 
-    return `${trivyBaseDir}/trivy`
+    return './trivy'
   }
 
   private checkPlatform(platform: string): string {
@@ -47,9 +58,8 @@ export class Downloader {
     } else if (platform === 'darwin') {
       return 'macOS'
     } else {
-      throw new Error(`
-        Sorry, ${platform} is not supported.
-        Trivy support Linux, MacOS, FreeBSD and OpenBSD.
+      throw new Error(`Sorry, ${platform} is not supported.
+      Trivy support Linux, MacOS, FreeBSD and OpenBSD.
       `)
     }
   }
@@ -84,33 +94,17 @@ export class Downloader {
       }
     }
 
-    throw new Error(`
-      Cloud not be found Trivy asset that You specified.
-      Version: ${version}
-      OS: ${os}
+    throw new Error(`Cloud not be found Trivy asset that You specified.
+    Version: ${version}
+    OS: ${os}
     `)
   }
 
   trivyExists(baseDir: string): boolean {
     const trivyCmdPaths: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
-    return trivyCmdPaths.length === 1 ? true : false
+    console.log(trivyCmdPaths)
+    return trivyCmdPaths.length === 1
   }
-
-  // private extractTrivyCmd(targetFile: string, outputDir?: string): string {
-  //   const baseDir: string = outputDir === undefined ? __dirname : outputDir
-
-  //   fs.createReadStream(targetFile)
-  //     .pipe(zlib.createGunzip())
-  //     .pipe(tar.Extract({ path: baseDir }))
-
-  //   const trivyCmdPath: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
-
-  //   if (trivyCmdPath.length !== 1) {
-  //     throw new Error('Failed to extract Trivy command file.')
-  //   }
-
-  //   return trivyCmdPath[0]
-  // }
 }
 
 export class Trivy {
@@ -129,15 +123,15 @@ export class Trivy {
 
     args.push(image)
     const result: SpawnSyncReturns<string> = spawnSync(trivyPath, args, { encoding: 'utf-8' })
-    const stdout: string = result.stdout
 
-    if (stdout && stdout.length > 0) {
-      return JSON.parse(stdout)
+    if (result.stdout && result.stdout.length > 0) {
+      return JSON.parse(result.stdout)
     }
 
-    throw new Error(`
-      Failed vulnerability scan using Trivy.
-      stderr: ${result.stderr}
+    throw new Error(`Failed vulnerability scan using Trivy.
+    stdout: ${result.stdout}
+    stderr: ${result.stderr}
+    erorr: ${result.error}
     `)
   }
 
@@ -147,24 +141,24 @@ export class Trivy {
     for (const vuln of vulnerabilities) {
       if (vuln.Vulnerabilities === null) continue
 
-      issueContent += `## ${vuln.Target}`
-      let vulnTable: string = `
-      |Title|Severity|CVE|Description|Package Name|Installed Version|Fixed Version|References|
-      |:--:|:--:|:--:|:--|:--:|:--:|:--:|:--|
-      `
+      issueContent += `## ${vuln.Target}\n`
+      let vulnTable: string = '|Title|Severity|CVE|Description|'
+      vulnTable += 'Package Name|Installed Version|Fixed Version|References|\n'
+      vulnTable += '|:--:|:--:|:--:|:--|:--:|:--:|:--:|:--|\n'
 
       for (const cve of vuln.Vulnerabilities) {
         vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.Description}`
         vulnTable += `|${cve.PkgName}|${cve.InstalledVersion}|${cve.FixedVersion}|`
 
-        for (const reference in cve.References) {
+        for (const reference of cve.References) {
           vulnTable += `${reference}<br>`
         }
 
         vulnTable.replace(/<br>$/, '|\n')
       }
-      issueContent += `${vulnTable}<br><br>`
+      issueContent += `${vulnTable}\n\n`
     }
+    console.log(issueContent)
     return issueContent
   }
 }

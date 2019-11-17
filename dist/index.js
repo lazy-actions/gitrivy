@@ -15765,8 +15765,15 @@ class Downloader {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
             const trivyBaseDir = '/usr/local/bin';
-            const response = yield axios_1.default.get(downloadUrl, { responseType: 'stream' });
-            response.data.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.extract({ path: trivyBaseDir }));
+            const axiosOptions = {
+                headers: { Accept: 'application/octet-stream' },
+                responseType: 'stream'
+            };
+            const response = yield axios_1.default.get(downloadUrl, axiosOptions);
+            const writer = fs_1.default.createWriteStream('trivy.tar.gz');
+            response.data.pipe(writer)
+                .pipe(zlib_1.default.createGunzip())
+                .pipe(tar_1.default.x({ C: trivyBaseDir }, ['trivy']));
             if (this.trivyExists(trivyBaseDir) === false) {
                 throw new Error('Failed to extract Trivy command file.');
             }
@@ -15831,7 +15838,8 @@ class Downloader {
     }
     trivyExists(baseDir) {
         const trivyCmdPaths = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
-        return trivyCmdPaths.length === 1 ? true : false;
+        console.debug(trivyCmdPaths);
+        return trivyCmdPaths.length === 1;
     }
 }
 exports.Downloader = Downloader;
@@ -15853,13 +15861,14 @@ class Trivy {
         }
         args.push(image);
         const result = child_process_1.spawnSync(trivyPath, args, { encoding: 'utf-8' });
-        const stdout = result.stdout;
-        if (stdout && stdout.length > 0) {
-            return JSON.parse(stdout);
+        if (result.stdout && result.stdout.length > 0) {
+            return JSON.parse(result.stdout);
         }
         throw new Error(`
       Failed vulnerability scan using Trivy.
+      stdout: ${result.stdout}
       stderr: ${result.stderr}
+      erorr: ${result.error}
     `);
     }
     static parse(vulnerabilities) {

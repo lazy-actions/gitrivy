@@ -28,7 +28,7 @@ jobs:
     - uses: ./
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        image: alpine:3.10.3
+        image: alpine:3.10.1
 
     - uses: homoluctus/slatify@v1.9.0
       if: always()

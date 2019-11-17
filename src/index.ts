@@ -24,10 +24,7 @@ async function run() {
     const issueContent: string = Trivy.parse(result)
 
     if (issueContent === '') {
-      core.info(`
-        Vulnerabilities were not found.
-        Your maintenance looks good 👍
-      `)
+      core.info('Vulnerabilities were not found.\nYour maintenance looks good 👍')
       return
     }
 
