@@ -13,16 +13,16 @@ interface Repository {
   repo: string
 }
 
-Octokit.prototype = new Octokit()
+export class Downloader {
+  githubClient: Octokit
 
-export class Downloader extends Octokit {
   static readonly trivyRepository: Repository = {
     owner: 'aquasecurity',
     repo: 'trivy'
   }
 
-  constructor(token: string, opts: Omit<Octokit.Options, 'auth'> = {}) {
-    super({...opts, auth: `token ${token}` })
+  constructor(token: string) {
+    this.githubClient = new Octokit({ auth: `token ${token}` })
   }
 
   public async download(version: string): Promise<string> {
@@ -55,11 +55,11 @@ export class Downloader extends Octokit {
 
     try {
       if (version === 'latest') {
-        response = await super.repos.getLatestRelease({
+        response = await this.githubClient.repos.getLatestRelease({
           ...Downloader.trivyRepository
         })
       } else {
-        response = await super.repos.getReleaseByTag({
+        response = await this.githubClient.repos.getReleaseByTag({
           ...Downloader.trivyRepository,
           tag: `v${version}`
         })

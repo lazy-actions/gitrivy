@@ -15755,10 +15755,9 @@ const child_process_1 = __webpack_require__(129);
 const axios_1 = __importDefault(__webpack_require__(53));
 const fs_1 = __importDefault(__webpack_require__(747));
 const tar_1 = __importDefault(__webpack_require__(885));
-rest_1.default.prototype = new rest_1.default();
-class Downloader extends rest_1.default {
-    constructor(token, opts = {}) {
-        super(Object.assign(Object.assign({}, opts), { auth: `token ${token}` }));
+class Downloader {
+    constructor(token) {
+        this.githubClient = new rest_1.default({ auth: `token ${token}` });
     }
     download(version) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -15787,19 +15786,16 @@ class Downloader extends rest_1.default {
         }
     }
     getDownloadUrl(version, os) {
-        const _super = Object.create(null, {
-            repos: { get: () => super.repos }
-        });
         var e_1, _a;
         return __awaiter(this, void 0, void 0, function* () {
             const filename = `trivy_${version}_${os}-64bit.tar.gz`;
             let response;
             try {
                 if (version === 'latest') {
-                    response = yield _super.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
+                    response = yield this.githubClient.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
                 }
                 else {
-                    response = yield _super.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
+                    response = yield this.githubClient.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
                 }
             }
             catch (error) {
