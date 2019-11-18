@@ -13215,26 +13215,12 @@ class Downloader {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
-            console.log(downloadUrl);
+            console.debug(downloadUrl);
             const response = yield node_fetch_1.default(downloadUrl);
-            const workspace = process.env.GTIHUB_WORKSPACE || '.';
-            response.body.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.extract({ path: workspace }));
-            // let result = spawnSync(
-            //   'curl',
-            //   ['-Lo', trivyCompressedPath, downloadUrl],
-            //   { encoding: 'utf-8' }
-            // )
-            // if (result.error) throw result.error
-            // result = spawnSync(
-            //   'tar',
-            //   ['xzf', trivyCompressedPath],
-            //   { encoding: 'utf-8' }
-            // )
-            // if (result.error) throw result.error
-            if (!this.trivyExists(workspace)) {
-                throw new Error('Failed to extract Trivy command file.');
-            }
-            return `${workspace}/trivy`;
+            const trivyCmdBaseDir = process.env.GITHUB_WORKSPACE || '.';
+            const trivyCmdPath = yield this.saveTrivyCmd(response, trivyCmdBaseDir);
+            console.debug(trivyCmdPath);
+            return trivyCmdPath;
         });
     }
     checkPlatform(platform) {
@@ -13289,6 +13275,18 @@ class Downloader {
     Version: ${version}
     OS: ${os}
     `);
+        });
+    }
+    saveTrivyCmd(response, savedPath = '.') {
+        return new Promise((resolve, reject) => {
+            const extract = tar_1.default.extract({ path: savedPath });
+            response.body.pipe(zlib_1.default.createGunzip()).pipe(extract);
+            extract.on('finish', () => {
+                if (!this.trivyExists(savedPath)) {
+                    reject('Failed to extract Trivy command file.');
+                }
+                resolve(`${savedPath}/trivy`);
+            });
         });
     }
     trivyExists(baseDir) {

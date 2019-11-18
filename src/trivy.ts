@@ -3,12 +3,11 @@ import Octokit, {
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
 import fs from 'fs'
-import fetch from 'node-fetch'
+import fetch, { Response } from 'node-fetch'
 import zlib from 'zlib'
 import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
-import { workerData } from 'worker_threads'
 
 interface Repository {
   owner: string,
@@ -30,30 +29,12 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    console.log(downloadUrl)
-    const response = await fetch(downloadUrl)
-    const workspace: string = process.env.GTIHUB_WORKSPACE || '.'
-    response.body.pipe(zlib.createGunzip()).pipe(tar.extract({ path: workspace }))
-
-    // let result = spawnSync(
-    //   'curl',
-    //   ['-Lo', trivyCompressedPath, downloadUrl],
-    //   { encoding: 'utf-8' }
-    // )
-    // if (result.error) throw result.error
-
-    // result = spawnSync(
-    //   'tar',
-    //   ['xzf', trivyCompressedPath],
-    //   { encoding: 'utf-8' }
-    // )
-    // if (result.error) throw result.error
-
-    if (!this.trivyExists(workspace)) {
-      throw new Error('Failed to extract Trivy command file.')
-    }
-
-    return `${workspace}/trivy`
+    console.debug(downloadUrl)
+    const response: Response = await fetch(downloadUrl)
+    const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || '.'
+    const trivyCmdPath: string = await this.saveTrivyCmd(response, trivyCmdBaseDir)
+    console.debug(trivyCmdPath)
+    return trivyCmdPath
   }
 
   private checkPlatform(platform: string): string {
@@ -104,7 +85,22 @@ export class Downloader {
     `)
   }
 
-  trivyExists(baseDir: string): boolean {
+  private saveTrivyCmd(response: Response, savedPath: string = '.'): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const extract = tar.extract({ path: savedPath })
+      response.body.pipe(zlib.createGunzip()).pipe(extract)
+
+      extract.on('finish', () => {
+        if (!this.trivyExists(savedPath)) {
+          reject('Failed to extract Trivy command file.')
+        }
+        resolve(`${savedPath}/trivy`)
+      })
+    })
+
+  }
+
+  public trivyExists(baseDir: string): boolean {
     const trivyCmdPaths: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
     console.log(trivyCmdPaths)
     return trivyCmdPaths.length === 1
