@@ -13215,11 +13215,11 @@ class Downloader {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
-            console.debug(downloadUrl);
+            console.debug(`Download URL: ${downloadUrl}`);
             const response = yield node_fetch_1.default(downloadUrl);
             const trivyCmdBaseDir = process.env.GITHUB_WORKSPACE || '.';
             const trivyCmdPath = yield this.saveTrivyCmd(response, trivyCmdBaseDir);
-            console.debug(trivyCmdPath);
+            console.debug(`Trivy Command Path: ${trivyCmdPath}`);
             return trivyCmdPath;
         });
     }
@@ -13341,7 +13341,7 @@ class Trivy {
             }
             issueContent += `${vulnTable}\n\n`;
         }
-        console.log(issueContent);
+        console.debug(issueContent);
         return issueContent;
     }
 }

@@ -29,11 +29,11 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    console.debug(downloadUrl)
+    console.debug(`Download URL: ${downloadUrl}`)
     const response: Response = await fetch(downloadUrl)
     const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || '.'
     const trivyCmdPath: string = await this.saveTrivyCmd(response, trivyCmdBaseDir)
-    console.debug(trivyCmdPath)
+    console.debug(`Trivy Command Path: ${trivyCmdPath}`)
     return trivyCmdPath
   }
 
@@ -159,7 +159,7 @@ export class Trivy {
       }
       issueContent += `${vulnTable}\n\n`
     }
-    console.log(issueContent)
+    console.debug(issueContent)
     return issueContent
   }
 }
