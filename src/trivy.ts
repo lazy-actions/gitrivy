@@ -3,6 +3,9 @@ import Octokit, {
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
 import fs from 'fs'
+import fetch from 'node-fetch'
+import zlib from 'zlib'
+import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
 
@@ -27,20 +30,22 @@ export class Downloader {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
     console.log(downloadUrl)
-    const trivyCompressedPath: string = `${__dirname}/trivy.tar.gz`
-    let result = spawnSync(
-      'curl',
-      ['-Lo', trivyCompressedPath, downloadUrl],
-      { encoding: 'utf-8' }
-    )
-    if (result.error) throw result.error
+    const response = await fetch(downloadUrl)
+    response.body.pipe(zlib.createGunzip()).pipe(tar.extract({ path: '.' }))
 
-    result = spawnSync(
-      'tar',
-      ['xzf', trivyCompressedPath],
-      { encoding: 'utf-8' }
-    )
-    if (result.error) throw result.error
+    // let result = spawnSync(
+    //   'curl',
+    //   ['-Lo', trivyCompressedPath, downloadUrl],
+    //   { encoding: 'utf-8' }
+    // )
+    // if (result.error) throw result.error
+
+    // result = spawnSync(
+    //   'tar',
+    //   ['xzf', trivyCompressedPath],
+    //   { encoding: 'utf-8' }
+    // )
+    // if (result.error) throw result.error
 
     if (!this.trivyExists('.')) {
       throw new Error('Failed to extract Trivy command file.')
