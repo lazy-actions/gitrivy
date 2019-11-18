@@ -13217,7 +13217,8 @@ class Downloader {
             const downloadUrl = yield this.getDownloadUrl(version, os);
             console.log(downloadUrl);
             const response = yield node_fetch_1.default(downloadUrl);
-            response.body.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.extract({ path: '.' }));
+            const workspace = process.env.GTIHUB_WORKSPACE || '.';
+            response.body.pipe(zlib_1.default.createGunzip()).pipe(tar_1.default.extract({ path: workspace }));
             // let result = spawnSync(
             //   'curl',
             //   ['-Lo', trivyCompressedPath, downloadUrl],
@@ -13230,10 +13231,10 @@ class Downloader {
             //   { encoding: 'utf-8' }
             // )
             // if (result.error) throw result.error
-            if (!this.trivyExists('.')) {
+            if (!this.trivyExists(workspace)) {
                 throw new Error('Failed to extract Trivy command file.');
             }
-            return './trivy';
+            return `${workspace}/trivy`;
         });
     }
     checkPlatform(platform) {

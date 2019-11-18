@@ -32,7 +32,7 @@ export class Downloader {
     const downloadUrl: string = await this.getDownloadUrl(version, os)
     console.log(downloadUrl)
     const response = await fetch(downloadUrl)
-    const workspace: string = process.env.$GTIHUB_WORKSPACE || '.'
+    const workspace: string = process.env.GTIHUB_WORKSPACE || '.'
     response.body.pipe(zlib.createGunzip()).pipe(tar.extract({ path: workspace }))
 
     // let result = spawnSync(
