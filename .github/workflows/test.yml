@@ -29,6 +29,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         image: alpine:3.10.1
+        label: 'trivy,vulnerability,test'
 
     - uses: homoluctus/slatify@v1.9.0
       if: always()

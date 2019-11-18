@@ -3,6 +3,9 @@ import Octokit, {
 } from '@octokit/rest'
 import { spawnSync, SpawnSyncReturns } from 'child_process'
 import fs from 'fs'
+import fetch, { Response } from 'node-fetch'
+import zlib from 'zlib'
+import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
 
@@ -26,38 +29,24 @@ export class Downloader {
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
-    console.log(downloadUrl)
-    const trivyCompressedPath: string = `${__dirname}/trivy.tar.gz`
-    let result = spawnSync(
-      'curl',
-      ['-Lo', trivyCompressedPath, downloadUrl],
-      { encoding: 'utf-8' }
-    )
-    if (result.error) throw result.error
-
-    result = spawnSync(
-      'tar',
-      ['xzf', trivyCompressedPath],
-      { encoding: 'utf-8' }
-    )
-    if (result.error) throw result.error
-
-    if (!this.trivyExists('.')) {
-      throw new Error('Failed to extract Trivy command file.')
-    }
-
-    return './trivy'
+    console.debug(`Download URL: ${downloadUrl}`)
+    const response: Response = await fetch(downloadUrl)
+    const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || '.'
+    const trivyCmdPath: string = await this.saveTrivyCmd(response, trivyCmdBaseDir)
+    console.debug(`Trivy Command Path: ${trivyCmdPath}`)
+    return trivyCmdPath
   }
 
   private checkPlatform(platform: string): string {
-    if (platform === 'linux') {
-      return 'Linux'
-    } else if (platform === 'darwin') {
-      return 'macOS'
-    } else {
-      throw new Error(`Sorry, ${platform} is not supported.
-      Trivy support Linux, MacOS, FreeBSD and OpenBSD.
-      `)
+    switch (platform) {
+      case 'linux':
+        return 'Linux'
+      case 'darwin':
+        return 'macOS'
+      default:
+        throw new Error(`Sorry, ${platform} is not supported.
+        Trivy support Linux, MacOS, FreeBSD and OpenBSD.
+        `)
     }
   }
 
@@ -97,9 +86,23 @@ export class Downloader {
     `)
   }
 
-  trivyExists(baseDir: string): boolean {
+  private saveTrivyCmd(response: Response, savedPath: string = '.'): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const extract = tar.extract({ path: savedPath })
+      response.body.pipe(zlib.createGunzip()).pipe(extract)
+
+      extract.on('finish', () => {
+        if (!this.trivyExists(savedPath)) {
+          reject('Failed to extract Trivy command file.')
+        }
+        resolve(`${savedPath}/trivy`)
+      })
+    })
+
+  }
+
+  public trivyExists(baseDir: string): boolean {
     const trivyCmdPaths: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
-    console.log(trivyCmdPaths)
     return trivyCmdPaths.length === 1
   }
 }
@@ -144,18 +147,19 @@ export class Trivy {
       vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|\n'
 
       for (const cve of vuln.Vulnerabilities) {
-        vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.PkgName}`
-        vulnTable += `|${cve.InstalledVersion}|${cve.FixedVersion}|`
+        vulnTable += `|${cve.Title || 'N/A'}|${cve.Severity || 'N/A'}`
+        vulnTable += `|${cve.VulnerabilityID || 'N/A'}|${cve.PkgName || 'N/A'}`
+        vulnTable += `|${cve.InstalledVersion || 'N/A'}|${cve.FixedVersion || 'N/A'}|`
 
         for (const reference of cve.References) {
-          vulnTable += `${reference}<br>`
+          vulnTable += `${reference || 'N/A'}<br>`
         }
 
         vulnTable.replace(/<br>$/, '|\n')
       }
       issueContent += `${vulnTable}\n\n`
     }
-    console.log(issueContent)
+    console.debug(issueContent)
     return issueContent
   }
 }
