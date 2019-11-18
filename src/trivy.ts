@@ -8,6 +8,7 @@ import zlib from 'zlib'
 import tar from 'tar'
 
 import { TrivyOption, Vulnerability } from './interface'
+import { workerData } from 'worker_threads'
 
 interface Repository {
   owner: string,
@@ -31,7 +32,8 @@ export class Downloader {
     const downloadUrl: string = await this.getDownloadUrl(version, os)
     console.log(downloadUrl)
     const response = await fetch(downloadUrl)
-    response.body.pipe(zlib.createGunzip()).pipe(tar.extract({ path: '.' }))
+    const workspace: string = process.env.$GTIHUB_WORKSPACE || '.'
+    response.body.pipe(zlib.createGunzip()).pipe(tar.extract({ path: workspace }))
 
     // let result = spawnSync(
     //   'curl',
@@ -47,11 +49,11 @@ export class Downloader {
     // )
     // if (result.error) throw result.error
 
-    if (!this.trivyExists('.')) {
+    if (!this.trivyExists(workspace)) {
       throw new Error('Failed to extract Trivy command file.')
     }
 
-    return './trivy'
+    return `${workspace}/trivy`
   }
 
   private checkPlatform(platform: string): string {
