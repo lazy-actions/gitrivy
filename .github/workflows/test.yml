@@ -1,10 +1,6 @@
 name: Test my typescript action
 
-on:
-  pull_request:
-  push:
-    branches:
-      - master
+on: pull_request
 
 jobs:
   test:
@@ -29,7 +25,9 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         image: alpine:3.10.1
-        label: 'trivy,vulnerability,test'
+        issue_label: trivy,vulnerability,test
+        issue_title: Security Alert Test
+        issue_assignee: homoluctus
 
     - uses: homoluctus/slatify@v1.9.0
       if: always()
