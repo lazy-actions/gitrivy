@@ -13224,16 +13224,15 @@ class Downloader {
         });
     }
     checkPlatform(platform) {
-        if (platform === 'linux') {
-            return 'Linux';
-        }
-        else if (platform === 'darwin') {
-            return 'macOS';
-        }
-        else {
-            throw new Error(`Sorry, ${platform} is not supported.
-      Trivy support Linux, MacOS, FreeBSD and OpenBSD.
-      `);
+        switch (platform) {
+            case 'linux':
+                return 'Linux';
+            case 'darwin':
+                return 'macOS';
+            default:
+                throw new Error(`Sorry, ${platform} is not supported.
+        Trivy support Linux, MacOS, FreeBSD and OpenBSD.
+        `);
         }
     }
     getDownloadUrl(version, os) {
@@ -13291,7 +13290,6 @@ class Downloader {
     }
     trivyExists(baseDir) {
         const trivyCmdPaths = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
-        console.log(trivyCmdPaths);
         return trivyCmdPaths.length === 1;
     }
 }
@@ -13333,10 +13331,11 @@ class Trivy {
             vulnTable += 'Installed Version|Fixed Version|References|\n';
             vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|\n';
             for (const cve of vuln.Vulnerabilities) {
-                vulnTable += `|${cve.Title}|${cve.Severity}|${cve.VulnerabilityID}|${cve.PkgName}`;
-                vulnTable += `|${cve.InstalledVersion}|${cve.FixedVersion}|`;
+                vulnTable += `|${cve.Title || 'N/A'}|${cve.Severity || 'N/A'}`;
+                vulnTable += `|${cve.VulnerabilityID || 'N/A'}|${cve.PkgName || 'N/A'}`;
+                vulnTable += `|${cve.InstalledVersion || 'N/A'}|${cve.FixedVersion || 'N/A'}|`;
                 for (const reference of cve.References) {
-                    vulnTable += `${reference}<br>`;
+                    vulnTable += `${reference || 'N/A'}<br>`;
                 }
                 vulnTable.replace(/<br>$/, '|\n');
             }
