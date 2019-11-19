@@ -9,7 +9,12 @@ async function run() {
   try {
     const token: string = core.getInput('token', { required: true })
     const trivyVersion: string = core.getInput('trivy_version').replace(/^v/, '')
-    const image: string = core.getInput('image', { required: true })
+    const image: string | undefined = core.getInput('image') || process.env.IMAGE_NAME
+
+    if (image === undefined || image === '') {
+      throw new Error('Please specify scan target image name')
+    }
+
     const trivyOptions: TrivyOption = {
       severity: core.getInput('severity').replace(/\s+/g, ''),
       vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),

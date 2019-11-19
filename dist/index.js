@@ -6659,7 +6659,10 @@ function run() {
         try {
             const token = core.getInput('token', { required: true });
             const trivyVersion = core.getInput('trivy_version').replace(/^v/, '');
-            const image = core.getInput('image', { required: true });
+            const image = core.getInput('image') || process.env.IMAGE_NAME;
+            if (image === undefined || image === '') {
+                throw new Error('Please specify scan target image name');
+            }
             const trivyOptions = {
                 severity: core.getInput('severity').replace(/\s+/g, ''),
                 vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
