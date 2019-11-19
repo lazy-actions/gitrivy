@@ -10,8 +10,8 @@ inputs:
     default: 'latest'
     required: false
   image:
-    description: 'The target image name of vulnerability scan'
-    required: true
+    description: 'The target image name of vulnerability scan (specify this parameter or "IMAGE_NAME" environment variable'
+    required: false
   severity:
     description: 'sevirities of vulunerabilities (separeted by commma)'
     default: 'HIGH,CRITICAL'

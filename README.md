@@ -4,6 +4,9 @@
 ![GitHub](https://img.shields.io/github/license/homoluctus/gitrivy?color=brightgreen)
 
 This is a GitHub Actions to scan vulnerability using [Trivy](https://github.com/aquasecurity/trivy).<br>
+If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
+
+![image](https://github.com/homoluctus/gitrivy/blob/master/issue.png)
 
 ## Usage
 
@@ -13,7 +16,7 @@ This is a GitHub Actions to scan vulnerability using [Trivy](https://github.com/
 |:--:|:--:|:--:|:--|
 |token|True|N/A|GitHub access token<br>${{ secrets.GITHUB_TOKEN }} is recommended|
 |trivy_version|False|latest|Trivy version|
-|image|True|N/A|The target image name to scan the vulnerability|
+|image|True|N/A|The target image name to scan the vulnerability<br>Specify this parameter or `IMAGE_NAME` environment variable|
 |severity|False|HIGH,CRITICAL|Sevirities of vulunerabilities (separeted by commma)|
 |vuln_type|False|os,library|Scan target are os and / or library (separeted by commma)|
 |ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Specify true or false|
