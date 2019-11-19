@@ -1,6 +1,6 @@
 # Gitrivy
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/homoluctus/gitrivy?color=brightgreen)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/homoluctus/gitrivy?color=brightgreen&include_prereleases)
 ![GitHub](https://img.shields.io/github/license/homoluctus/gitrivy?color=brightgreen)
 
 This is a GitHub Actions to scan vulnerability using [Trivy](https://github.com/aquasecurity/trivy).<br>
@@ -40,7 +40,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '0 9 * * *'
+    - cron: '00 9 * * *'
 
 jobs:
   scan:
