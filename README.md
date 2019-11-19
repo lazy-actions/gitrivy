@@ -6,7 +6,7 @@
 This is a GitHub Actions to scan vulnerability using [Trivy](https://github.com/aquasecurity/trivy).<br>
 If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 
-![image](https://github.com/homoluctus/gitrivy/issue.png)
+![image](https://github.com/homoluctus/gitrivy/blob/master/issue.png)
 
 ## Usage
 
