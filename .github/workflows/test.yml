@@ -2,9 +2,12 @@ name: Test my typescript action
 
 on: pull_request
 
+env:
+  IMAGE_NAME: alpine:3.10.1
+
 jobs:
-  test:
-    name: Test
+  test1:
+    name: Test for with parameter
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
@@ -36,3 +39,36 @@ jobs:
         job_name: ':ts: *test gitrivy*'
         channel: '#develop'
         url: ${{ secrets.SLACK_WEBHOOK }}
+
+  test2:
+    name: Test for getting image name from enviroment variable
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependencies
+        run: npm install
+
+      # - name: Test
+      #   run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Pull docker image
+        run: docker pull alpine:3.10.3
+
+      - uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue_label: trivy,vulnerability,test
+          issue_title: Security Alert Test
+          issue_assignee: homoluctus
+
+      - uses: homoluctus/slatify@v1.9.0
+        if: always()
+        with:
+          type: ${{ job.status }}
+          job_name: ':ts: *test gitrivy*'
+          channel: '#develop'
+          url: ${{ secrets.SLACK_WEBHOOK }}
