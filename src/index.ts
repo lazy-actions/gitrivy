@@ -23,7 +23,7 @@ async function run() {
                       ? true : false
     }
 
-    const downloader = new Downloader(token)
+    const downloader = new Downloader()
     const trivyCmdPath: string = await downloader.download(trivyVersion)
     const result: Vulnerability[] = Trivy.scan(trivyCmdPath, image, trivyOptions)
     const issueContent: string = Trivy.parse(result)

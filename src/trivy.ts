@@ -1,11 +1,11 @@
+import fs from 'fs'
+import zlib from 'zlib'
+import tar from 'tar'
 import Octokit, {
   ReposGetLatestReleaseResponse
 } from '@octokit/rest'
-import { spawnSync, SpawnSyncReturns } from 'child_process'
-import fs from 'fs'
 import fetch, { Response } from 'node-fetch'
-import zlib from 'zlib'
-import tar from 'tar'
+import { spawnSync, SpawnSyncReturns } from 'child_process'
 
 import { TrivyOption, Vulnerability } from './interface'
 
@@ -22,17 +22,16 @@ export class Downloader {
     repo: 'trivy'
   }
 
-  constructor(token: string) {
-    this.githubClient = new Octokit({ auth: `token ${token}` })
+  constructor() {
+    this.githubClient = new Octokit();
   }
 
   public async download(version: string): Promise<string> {
     const os: string = this.checkPlatform(process.platform)
     const downloadUrl: string = await this.getDownloadUrl(version, os)
     console.debug(`Download URL: ${downloadUrl}`)
-    const response: Response = await fetch(downloadUrl)
     const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || '.'
-    const trivyCmdPath: string = await this.saveTrivyCmd(response, trivyCmdBaseDir)
+    const trivyCmdPath: string = await this.downloadTrivyCmd(downloadUrl, trivyCmdBaseDir)
     console.debug(`Trivy Command Path: ${trivyCmdPath}`)
     return trivyCmdPath
   }
@@ -40,13 +39,13 @@ export class Downloader {
   private checkPlatform(platform: string): string {
     switch (platform) {
       case 'linux':
-        return 'Linux'
+        return 'Linux';
       case 'darwin':
-        return 'macOS'
+        return 'macOS';
       default:
-        throw new Error(`Sorry, ${platform} is not supported.
-        Trivy support Linux, MacOS, FreeBSD and OpenBSD.
-        `)
+        const errorMsg: string = `Sorry, ${platform} is not supported.
+        Trivy support Linux, MacOS, FreeBSD and OpenBSD.`;
+        throw new Error(errorMsg);
     }
   }
 
@@ -66,43 +65,46 @@ export class Downloader {
         })
       }
     } catch (error) {
-      throw new Error(`
-        The Trivy version that you specified does not exist.
-        Version: ${version}
-      `)
+      throw new Error(`The Trivy version that you specified does not exist.
+      Version: ${version}
+      `);
     }
 
-    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`
-
+    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`;
     for await (const asset of response.data.assets) {
       if (asset.name === filename) {
-        return asset.browser_download_url
+        return asset.browser_download_url;
       }
     }
 
-    throw new Error(`Cloud not be found Trivy asset that You specified.
+    const errorMsg: string = `Cloud not be found Trivy asset that You specified.
     Version: ${version}
-    OS: ${os}
-    `)
+    OS: ${os}`;
+    throw new Error(errorMsg);
   }
 
-  private saveTrivyCmd(response: Response, savedPath: string = '.'): Promise<string> {
+  private async downloadTrivyCmd(downloadUrl: string, savedPath: string = '.'): Promise<string> {
+    const response: Response = await fetch(downloadUrl);
+
     return new Promise((resolve, reject) => {
-      const extract = tar.extract({ path: savedPath })
-      response.body.pipe(zlib.createGunzip()).pipe(extract)
-
-      extract.on('finish', () => {
-        if (!this.trivyExists(savedPath)) {
-          reject('Failed to extract Trivy command file.')
-        }
-        resolve(`${savedPath}/trivy`)
-      })
-    })
-
+      const extract = tar.extract({ C: savedPath }, ['trivy'])
+      response.body
+        .on('error', reject)
+        .pipe(zlib.createGunzip())
+        .on('error', reject)
+        .pipe(extract)
+        .on('error', reject)
+        .on('finish', () => {
+          if (!this.trivyExists(savedPath)) {
+            reject('Failed to extract Trivy command file.');
+          }
+          resolve(`${savedPath}/trivy`);
+        });
+    });
   }
 
-  public trivyExists(baseDir: string): boolean {
-    const trivyCmdPaths: string[] = fs.readdirSync(baseDir).filter(f => f === 'trivy')
+  public trivyExists(targetDir: string): boolean {
+    const trivyCmdPaths: string[] = fs.readdirSync(targetDir).filter(f => f === 'trivy')
     return trivyCmdPaths.length === 1
   }
 }
@@ -129,9 +131,9 @@ export class Trivy {
     }
 
     throw new Error(`Failed vulnerability scan using Trivy.
-    stdout: ${result.stdout}
-    stderr: ${result.stderr}
-    erorr: ${result.error}
+      stdout: ${result.stdout}
+      stderr: ${result.stderr}
+      erorr: ${result.error}
     `)
   }
 

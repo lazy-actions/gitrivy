@@ -301,6 +301,28 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 13:
+/***/ (function(module) {
+
+module.exports = getPageLinks
+
+function getPageLinks (link) {
+  link = link.link || link.headers.link || ''
+
+  const links = {}
+
+  // link format:
+  // '<https://api.github.com/users/aseemk/followers?page=2>; rel="next", <https://api.github.com/users/aseemk/followers?page=2>; rel="last"'
+  link.replace(/<([^>]*)>;\s*rel="([\w]*)"/g, (m, uri, type) => {
+    links[type] = uri
+  })
+
+  return links
+}
+
+
+/***/ }),
+
 /***/ 18:
 /***/ (function() {
 
@@ -653,7 +675,7 @@ const Parser = __webpack_require__(203)
 const fs = __webpack_require__(747)
 const fsm = __webpack_require__(827)
 const path = __webpack_require__(622)
-const mkdir = __webpack_require__(491)
+const mkdir = __webpack_require__(577)
 const mkdirSync = mkdir.sync
 const wc = __webpack_require__(478)
 const pathReservations = __webpack_require__(182)
@@ -2287,7 +2309,7 @@ module.exports = require("child_process");
 
 
 const assert = __webpack_require__(357)
-const Buffer = __webpack_require__(407).Buffer
+const Buffer = __webpack_require__(293).Buffer
 const realZlib = __webpack_require__(761)
 
 const constants = exports.constants = __webpack_require__(60)
@@ -2662,7 +2684,7 @@ function withAuthorizationPrefix(authorization) {
 "use strict";
 
 const pump = __webpack_require__(453);
-const bufferStream = __webpack_require__(966);
+const bufferStream = __webpack_require__(158);
 
 class MaxBufferError extends Error {
 	constructor() {
@@ -2726,6 +2748,65 @@ function paginatePlugin(octokit) {
   octokit.paginate = paginate.bind(null, octokit);
   octokit.paginate.iterator = iterator.bind(null, octokit);
 }
+
+
+/***/ }),
+
+/***/ 158:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+const {PassThrough} = __webpack_require__(413);
+
+module.exports = options => {
+	options = Object.assign({}, options);
+
+	const {array} = options;
+	let {encoding} = options;
+	const buffer = encoding === 'buffer';
+	let objectMode = false;
+
+	if (array) {
+		objectMode = !(encoding || buffer);
+	} else {
+		encoding = encoding || 'utf8';
+	}
+
+	if (buffer) {
+		encoding = null;
+	}
+
+	let len = 0;
+	const ret = [];
+	const stream = new PassThrough({objectMode});
+
+	if (encoding) {
+		stream.setEncoding(encoding);
+	}
+
+	stream.on('data', chunk => {
+		ret.push(chunk);
+
+		if (objectMode) {
+			len = ret.length;
+		} else {
+			len += chunk.length;
+		}
+	});
+
+	stream.getBufferedValue = () => {
+		if (array) {
+			return ret;
+		}
+
+		return buffer ? Buffer.concat(ret, len) : ret.join('');
+	};
+
+	stream.getBufferedLength = () => len;
+
+	return stream;
+};
 
 
 /***/ }),
@@ -3069,7 +3150,7 @@ module.exports = () => {
 module.exports = authenticationPlugin;
 
 const beforeRequest = __webpack_require__(863);
-const requestError = __webpack_require__(293);
+const requestError = __webpack_require__(991);
 const validate = __webpack_require__(954);
 
 function authenticationPlugin(octokit, options) {
@@ -4199,7 +4280,7 @@ exports.Context = Context;
 module.exports = getPage
 
 const deprecate = __webpack_require__(370)
-const getPageLinks = __webpack_require__(577)
+const getPageLinks = __webpack_require__(13)
 const HttpError = __webpack_require__(297)
 
 function getPage (octokit, link, which, headers) {
@@ -5728,176 +5809,10 @@ function coerce (version) {
 
 /***/ }),
 
-/***/ 289:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-var path = __webpack_require__(622);
-var fs = __webpack_require__(747);
-var _0777 = parseInt('0777', 8);
-
-module.exports = mkdirP.mkdirp = mkdirP.mkdirP = mkdirP;
-
-function mkdirP (p, opts, f, made) {
-    if (typeof opts === 'function') {
-        f = opts;
-        opts = {};
-    }
-    else if (!opts || typeof opts !== 'object') {
-        opts = { mode: opts };
-    }
-    
-    var mode = opts.mode;
-    var xfs = opts.fs || fs;
-    
-    if (mode === undefined) {
-        mode = _0777 & (~process.umask());
-    }
-    if (!made) made = null;
-    
-    var cb = f || function () {};
-    p = path.resolve(p);
-    
-    xfs.mkdir(p, mode, function (er) {
-        if (!er) {
-            made = made || p;
-            return cb(null, made);
-        }
-        switch (er.code) {
-            case 'ENOENT':
-                mkdirP(path.dirname(p), opts, function (er, made) {
-                    if (er) cb(er, made);
-                    else mkdirP(p, opts, cb, made);
-                });
-                break;
-
-            // In the case of any other error, just see if there's a dir
-            // there already.  If so, then hooray!  If not, then something
-            // is borked.
-            default:
-                xfs.stat(p, function (er2, stat) {
-                    // if the stat fails, then that's super weird.
-                    // let the original error be the failure reason.
-                    if (er2 || !stat.isDirectory()) cb(er, made)
-                    else cb(null, made);
-                });
-                break;
-        }
-    });
-}
-
-mkdirP.sync = function sync (p, opts, made) {
-    if (!opts || typeof opts !== 'object') {
-        opts = { mode: opts };
-    }
-    
-    var mode = opts.mode;
-    var xfs = opts.fs || fs;
-    
-    if (mode === undefined) {
-        mode = _0777 & (~process.umask());
-    }
-    if (!made) made = null;
-
-    p = path.resolve(p);
-
-    try {
-        xfs.mkdirSync(p, mode);
-        made = made || p;
-    }
-    catch (err0) {
-        switch (err0.code) {
-            case 'ENOENT' :
-                made = sync(path.dirname(p), opts, made);
-                sync(p, opts, made);
-                break;
-
-            // In the case of any other error, just see if there's a dir
-            // there already.  If so, then hooray!  If not, then something
-            // is borked.
-            default:
-                var stat;
-                try {
-                    stat = xfs.statSync(p);
-                }
-                catch (err1) {
-                    throw err0;
-                }
-                if (!stat.isDirectory()) throw err0;
-                break;
-        }
-    }
-
-    return made;
-};
-
-
-/***/ }),
-
 /***/ 293:
-/***/ (function(module, __unusedexports, __webpack_require__) {
+/***/ (function(module) {
 
-module.exports = authenticationRequestError;
-
-const { RequestError } = __webpack_require__(463);
-
-function authenticationRequestError(state, error, options) {
-  if (!error.headers) throw error;
-
-  const otpRequired = /required/.test(error.headers["x-github-otp"] || "");
-  // handle "2FA required" error only
-  if (error.status !== 401 || !otpRequired) {
-    throw error;
-  }
-
-  if (
-    error.status === 401 &&
-    otpRequired &&
-    error.request &&
-    error.request.headers["x-github-otp"]
-  ) {
-    if (state.otp) {
-      delete state.otp; // no longer valid, request again
-    } else {
-      throw new RequestError(
-        "Invalid one-time password for two-factor authentication",
-        401,
-        {
-          headers: error.headers,
-          request: options
-        }
-      );
-    }
-  }
-
-  if (typeof state.auth.on2fa !== "function") {
-    throw new RequestError(
-      "2FA required, but options.on2fa is not a function. See https://github.com/octokit/rest.js#authentication",
-      401,
-      {
-        headers: error.headers,
-        request: options
-      }
-    );
-  }
-
-  return Promise.resolve()
-    .then(() => {
-      return state.auth.on2fa();
-    })
-    .then(oneTimePassword => {
-      const newOptions = Object.assign(options, {
-        headers: Object.assign(options.headers, {
-          "x-github-otp": oneTimePassword
-        })
-      });
-      return state.octokit.request(newOptions).then(response => {
-        // If OTP still valid, then persist it for following requests
-        state.otp = oneTimePassword;
-        return response;
-      });
-    });
-}
-
+module.exports = require("buffer");
 
 /***/ }),
 
@@ -6670,7 +6585,7 @@ function run() {
                     .toLowerCase() === 'true'
                     ? true : false
             };
-            const downloader = new trivy_1.Downloader(token);
+            const downloader = new trivy_1.Downloader();
             const trivyCmdPath = yield downloader.download(trivyVersion);
             const result = trivy_1.Trivy.scan(trivyCmdPath, image, trivyOptions);
             const issueContent = trivy_1.Trivy.parse(result);
@@ -6705,7 +6620,7 @@ run();
 module.exports = hasLastPage
 
 const deprecate = __webpack_require__(370)
-const getPageLinks = __webpack_require__(577)
+const getPageLinks = __webpack_require__(13)
 
 function hasLastPage (link) {
   deprecate(`octokit.hasLastPage() – You can use octokit.paginate or async iterators instead: https://github.com/octokit/rest.js#pagination.`)
@@ -7188,7 +7103,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var isPlainObject = _interopDefault(__webpack_require__(626));
+var isPlainObject = _interopDefault(__webpack_require__(442));
 var universalUserAgent = __webpack_require__(562);
 
 function lowercaseKeys(object) {
@@ -7657,13 +7572,6 @@ function Octokit(plugins, options) {
 
 /***/ }),
 
-/***/ 407:
-/***/ (function(module) {
-
-module.exports = require("buffer");
-
-/***/ }),
-
 /***/ 413:
 /***/ (function(module) {
 
@@ -7809,6 +7717,62 @@ function escape(s) {
         .replace(/;/g, '%3B');
 }
 //# sourceMappingURL=command.js.map
+
+/***/ }),
+
+/***/ 442:
+/***/ (function(module) {
+
+"use strict";
+
+
+/*!
+ * isobject <https://github.com/jonschlinkert/isobject>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+function isObject(val) {
+  return val != null && typeof val === 'object' && Array.isArray(val) === false;
+}
+
+/*!
+ * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+function isObjectObject(o) {
+  return isObject(o) === true
+    && Object.prototype.toString.call(o) === '[object Object]';
+}
+
+function isPlainObject(o) {
+  var ctor,prot;
+
+  if (isObjectObject(o) === false) return false;
+
+  // If has modified constructor
+  ctor = o.constructor;
+  if (typeof ctor !== 'function') return false;
+
+  // If has modified prototype
+  prot = ctor.prototype;
+  if (isObjectObject(prot) === false) return false;
+
+  // If constructor does not have an Object-specific method
+  if (prot.hasOwnProperty('isPrototypeOf') === false) {
+    return false;
+  }
+
+  // Most likely a plain Object
+  return true;
+}
+
+module.exports = isPlainObject;
+
 
 /***/ }),
 
@@ -10041,220 +10005,6 @@ module.exports = resolveCommand;
 
 /***/ }),
 
-/***/ 491:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-// wrapper around mkdirp for tar's needs.
-
-// TODO: This should probably be a class, not functionally
-// passing around state in a gazillion args.
-
-const mkdirp = __webpack_require__(289)
-const fs = __webpack_require__(747)
-const path = __webpack_require__(622)
-const chownr = __webpack_require__(941)
-
-class SymlinkError extends Error {
-  constructor (symlink, path) {
-    super('Cannot extract through symbolic link')
-    this.path = path
-    this.symlink = symlink
-  }
-
-  get name () {
-    return 'SylinkError'
-  }
-}
-
-class CwdError extends Error {
-  constructor (path, code) {
-    super(code + ': Cannot cd into \'' + path + '\'')
-    this.path = path
-    this.code = code
-  }
-
-  get name () {
-    return 'CwdError'
-  }
-}
-
-const mkdir = module.exports = (dir, opt, cb) => {
-  // if there's any overlap between mask and mode,
-  // then we'll need an explicit chmod
-  const umask = opt.umask
-  const mode = opt.mode | 0o0700
-  const needChmod = (mode & umask) !== 0
-
-  const uid = opt.uid
-  const gid = opt.gid
-  const doChown = typeof uid === 'number' &&
-    typeof gid === 'number' &&
-    ( uid !== opt.processUid || gid !== opt.processGid )
-
-  const preserve = opt.preserve
-  const unlink = opt.unlink
-  const cache = opt.cache
-  const cwd = opt.cwd
-
-  const done = (er, created) => {
-    if (er)
-      cb(er)
-    else {
-      cache.set(dir, true)
-      if (created && doChown)
-        chownr(created, uid, gid, er => done(er))
-      else if (needChmod)
-        fs.chmod(dir, mode, cb)
-      else
-        cb()
-    }
-  }
-
-  if (cache && cache.get(dir) === true)
-    return done()
-
-  if (dir === cwd)
-    return fs.stat(dir, (er, st) => {
-      if (er || !st.isDirectory())
-        er = new CwdError(dir, er && er.code || 'ENOTDIR')
-      done(er)
-    })
-
-  if (preserve)
-    return mkdirp(dir, mode, done)
-
-  const sub = path.relative(cwd, dir)
-  const parts = sub.split(/\/|\\/)
-  mkdir_(cwd, parts, mode, cache, unlink, cwd, null, done)
-}
-
-const mkdir_ = (base, parts, mode, cache, unlink, cwd, created, cb) => {
-  if (!parts.length)
-    return cb(null, created)
-  const p = parts.shift()
-  const part = base + '/' + p
-  if (cache.get(part))
-    return mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-  fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
-}
-
-const onmkdir = (part, parts, mode, cache, unlink, cwd, created, cb) => er => {
-  if (er) {
-    if (er.path && path.dirname(er.path) === cwd &&
-        (er.code === 'ENOTDIR' || er.code === 'ENOENT'))
-      return cb(new CwdError(cwd, er.code))
-
-    fs.lstat(part, (statEr, st) => {
-      if (statEr)
-        cb(statEr)
-      else if (st.isDirectory())
-        mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-      else if (unlink)
-        fs.unlink(part, er => {
-          if (er)
-            return cb(er)
-          fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
-        })
-      else if (st.isSymbolicLink())
-        return cb(new SymlinkError(part, part + '/' + parts.join('/')))
-      else
-        cb(er)
-    })
-  } else {
-    created = created || part
-    mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-  }
-}
-
-const mkdirSync = module.exports.sync = (dir, opt) => {
-  // if there's any overlap between mask and mode,
-  // then we'll need an explicit chmod
-  const umask = opt.umask
-  const mode = opt.mode | 0o0700
-  const needChmod = (mode & umask) !== 0
-
-  const uid = opt.uid
-  const gid = opt.gid
-  const doChown = typeof uid === 'number' &&
-    typeof gid === 'number' &&
-    ( uid !== opt.processUid || gid !== opt.processGid )
-
-  const preserve = opt.preserve
-  const unlink = opt.unlink
-  const cache = opt.cache
-  const cwd = opt.cwd
-
-  const done = (created) => {
-    cache.set(dir, true)
-    if (created && doChown)
-      chownr.sync(created, uid, gid)
-    if (needChmod)
-      fs.chmodSync(dir, mode)
-  }
-
-  if (cache && cache.get(dir) === true)
-    return done()
-
-  if (dir === cwd) {
-    let ok = false
-    let code = 'ENOTDIR'
-    try {
-      ok = fs.statSync(dir).isDirectory()
-    } catch (er) {
-      code = er.code
-    } finally {
-      if (!ok)
-        throw new CwdError(dir, code)
-    }
-    done()
-    return
-  }
-
-  if (preserve)
-    return done(mkdirp.sync(dir, mode))
-
-  const sub = path.relative(cwd, dir)
-  const parts = sub.split(/\/|\\/)
-  let created = null
-  for (let p = parts.shift(), part = cwd;
-       p && (part += '/' + p);
-       p = parts.shift()) {
-
-    if (cache.get(part))
-      continue
-
-    try {
-      fs.mkdirSync(part, mode)
-      created = created || part
-      cache.set(part, true)
-    } catch (er) {
-      if (er.path && path.dirname(er.path) === cwd &&
-          (er.code === 'ENOTDIR' || er.code === 'ENOENT'))
-        return new CwdError(cwd, er.code)
-
-      const st = fs.lstatSync(part)
-      if (st.isDirectory()) {
-        cache.set(part, true)
-        continue
-      } else if (unlink) {
-        fs.unlinkSync(part)
-        fs.mkdirSync(part, mode)
-        created = created || part
-        cache.set(part, true)
-        continue
-      } else if (st.isSymbolicLink())
-        return new SymlinkError(part, part + '/' + parts.join('/'))
-    }
-  }
-
-  return done(created)
-}
-
-
-/***/ }),
-
 /***/ 500:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -10453,7 +10203,7 @@ module.exports = factory();
 module.exports = hasFirstPage
 
 const deprecate = __webpack_require__(370)
-const getPageLinks = __webpack_require__(577)
+const getPageLinks = __webpack_require__(13)
 
 function hasFirstPage (link) {
   deprecate(`octokit.hasFirstPage() – You can use octokit.paginate or async iterators instead: https://github.com/octokit/rest.js#pagination.`)
@@ -10591,7 +10341,7 @@ exports.code = new Map(Array.from(exports.name).map(kv => [kv[1], kv[0]]))
 module.exports = hasPreviousPage
 
 const deprecate = __webpack_require__(370)
-const getPageLinks = __webpack_require__(577)
+const getPageLinks = __webpack_require__(13)
 
 function hasPreviousPage (link) {
   deprecate(`octokit.hasPreviousPage() – You can use octokit.paginate or async iterators instead: https://github.com/octokit/rest.js#pagination.`)
@@ -10779,22 +10529,214 @@ module.exports = parse;
 /***/ }),
 
 /***/ 577:
-/***/ (function(module) {
+/***/ (function(module, __unusedexports, __webpack_require__) {
 
-module.exports = getPageLinks
+"use strict";
 
-function getPageLinks (link) {
-  link = link.link || link.headers.link || ''
+// wrapper around mkdirp for tar's needs.
 
-  const links = {}
+// TODO: This should probably be a class, not functionally
+// passing around state in a gazillion args.
 
-  // link format:
-  // '<https://api.github.com/users/aseemk/followers?page=2>; rel="next", <https://api.github.com/users/aseemk/followers?page=2>; rel="last"'
-  link.replace(/<([^>]*)>;\s*rel="([\w]*)"/g, (m, uri, type) => {
-    links[type] = uri
-  })
+const mkdirp = __webpack_require__(626)
+const fs = __webpack_require__(747)
+const path = __webpack_require__(622)
+const chownr = __webpack_require__(941)
 
-  return links
+class SymlinkError extends Error {
+  constructor (symlink, path) {
+    super('Cannot extract through symbolic link')
+    this.path = path
+    this.symlink = symlink
+  }
+
+  get name () {
+    return 'SylinkError'
+  }
+}
+
+class CwdError extends Error {
+  constructor (path, code) {
+    super(code + ': Cannot cd into \'' + path + '\'')
+    this.path = path
+    this.code = code
+  }
+
+  get name () {
+    return 'CwdError'
+  }
+}
+
+const mkdir = module.exports = (dir, opt, cb) => {
+  // if there's any overlap between mask and mode,
+  // then we'll need an explicit chmod
+  const umask = opt.umask
+  const mode = opt.mode | 0o0700
+  const needChmod = (mode & umask) !== 0
+
+  const uid = opt.uid
+  const gid = opt.gid
+  const doChown = typeof uid === 'number' &&
+    typeof gid === 'number' &&
+    ( uid !== opt.processUid || gid !== opt.processGid )
+
+  const preserve = opt.preserve
+  const unlink = opt.unlink
+  const cache = opt.cache
+  const cwd = opt.cwd
+
+  const done = (er, created) => {
+    if (er)
+      cb(er)
+    else {
+      cache.set(dir, true)
+      if (created && doChown)
+        chownr(created, uid, gid, er => done(er))
+      else if (needChmod)
+        fs.chmod(dir, mode, cb)
+      else
+        cb()
+    }
+  }
+
+  if (cache && cache.get(dir) === true)
+    return done()
+
+  if (dir === cwd)
+    return fs.stat(dir, (er, st) => {
+      if (er || !st.isDirectory())
+        er = new CwdError(dir, er && er.code || 'ENOTDIR')
+      done(er)
+    })
+
+  if (preserve)
+    return mkdirp(dir, mode, done)
+
+  const sub = path.relative(cwd, dir)
+  const parts = sub.split(/\/|\\/)
+  mkdir_(cwd, parts, mode, cache, unlink, cwd, null, done)
+}
+
+const mkdir_ = (base, parts, mode, cache, unlink, cwd, created, cb) => {
+  if (!parts.length)
+    return cb(null, created)
+  const p = parts.shift()
+  const part = base + '/' + p
+  if (cache.get(part))
+    return mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
+  fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
+}
+
+const onmkdir = (part, parts, mode, cache, unlink, cwd, created, cb) => er => {
+  if (er) {
+    if (er.path && path.dirname(er.path) === cwd &&
+        (er.code === 'ENOTDIR' || er.code === 'ENOENT'))
+      return cb(new CwdError(cwd, er.code))
+
+    fs.lstat(part, (statEr, st) => {
+      if (statEr)
+        cb(statEr)
+      else if (st.isDirectory())
+        mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
+      else if (unlink)
+        fs.unlink(part, er => {
+          if (er)
+            return cb(er)
+          fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
+        })
+      else if (st.isSymbolicLink())
+        return cb(new SymlinkError(part, part + '/' + parts.join('/')))
+      else
+        cb(er)
+    })
+  } else {
+    created = created || part
+    mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
+  }
+}
+
+const mkdirSync = module.exports.sync = (dir, opt) => {
+  // if there's any overlap between mask and mode,
+  // then we'll need an explicit chmod
+  const umask = opt.umask
+  const mode = opt.mode | 0o0700
+  const needChmod = (mode & umask) !== 0
+
+  const uid = opt.uid
+  const gid = opt.gid
+  const doChown = typeof uid === 'number' &&
+    typeof gid === 'number' &&
+    ( uid !== opt.processUid || gid !== opt.processGid )
+
+  const preserve = opt.preserve
+  const unlink = opt.unlink
+  const cache = opt.cache
+  const cwd = opt.cwd
+
+  const done = (created) => {
+    cache.set(dir, true)
+    if (created && doChown)
+      chownr.sync(created, uid, gid)
+    if (needChmod)
+      fs.chmodSync(dir, mode)
+  }
+
+  if (cache && cache.get(dir) === true)
+    return done()
+
+  if (dir === cwd) {
+    let ok = false
+    let code = 'ENOTDIR'
+    try {
+      ok = fs.statSync(dir).isDirectory()
+    } catch (er) {
+      code = er.code
+    } finally {
+      if (!ok)
+        throw new CwdError(dir, code)
+    }
+    done()
+    return
+  }
+
+  if (preserve)
+    return done(mkdirp.sync(dir, mode))
+
+  const sub = path.relative(cwd, dir)
+  const parts = sub.split(/\/|\\/)
+  let created = null
+  for (let p = parts.shift(), part = cwd;
+       p && (part += '/' + p);
+       p = parts.shift()) {
+
+    if (cache.get(part))
+      continue
+
+    try {
+      fs.mkdirSync(part, mode)
+      created = created || part
+      cache.set(part, true)
+    } catch (er) {
+      if (er.path && path.dirname(er.path) === cwd &&
+          (er.code === 'ENOTDIR' || er.code === 'ENOENT'))
+        return new CwdError(cwd, er.code)
+
+      const st = fs.lstatSync(part)
+      if (st.isDirectory()) {
+        cache.set(part, true)
+        continue
+      } else if (unlink) {
+        fs.unlinkSync(part)
+        fs.mkdirSync(part, mode)
+        created = created || part
+        cache.set(part, true)
+        continue
+      } else if (st.isSymbolicLink())
+        return new SymlinkError(part, part + '/' + parts.join('/'))
+    }
+  }
+
+  return done(created)
 }
 
 
@@ -11506,57 +11448,106 @@ module.exports = require("path");
 /***/ }),
 
 /***/ 626:
-/***/ (function(module) {
+/***/ (function(module, __unusedexports, __webpack_require__) {
 
-"use strict";
+var path = __webpack_require__(622);
+var fs = __webpack_require__(747);
+var _0777 = parseInt('0777', 8);
 
+module.exports = mkdirP.mkdirp = mkdirP.mkdirP = mkdirP;
 
-/*!
- * isobject <https://github.com/jonschlinkert/isobject>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
+function mkdirP (p, opts, f, made) {
+    if (typeof opts === 'function') {
+        f = opts;
+        opts = {};
+    }
+    else if (!opts || typeof opts !== 'object') {
+        opts = { mode: opts };
+    }
+    
+    var mode = opts.mode;
+    var xfs = opts.fs || fs;
+    
+    if (mode === undefined) {
+        mode = _0777 & (~process.umask());
+    }
+    if (!made) made = null;
+    
+    var cb = f || function () {};
+    p = path.resolve(p);
+    
+    xfs.mkdir(p, mode, function (er) {
+        if (!er) {
+            made = made || p;
+            return cb(null, made);
+        }
+        switch (er.code) {
+            case 'ENOENT':
+                mkdirP(path.dirname(p), opts, function (er, made) {
+                    if (er) cb(er, made);
+                    else mkdirP(p, opts, cb, made);
+                });
+                break;
 
-function isObject(val) {
-  return val != null && typeof val === 'object' && Array.isArray(val) === false;
+            // In the case of any other error, just see if there's a dir
+            // there already.  If so, then hooray!  If not, then something
+            // is borked.
+            default:
+                xfs.stat(p, function (er2, stat) {
+                    // if the stat fails, then that's super weird.
+                    // let the original error be the failure reason.
+                    if (er2 || !stat.isDirectory()) cb(er, made)
+                    else cb(null, made);
+                });
+                break;
+        }
+    });
 }
 
-/*!
- * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
+mkdirP.sync = function sync (p, opts, made) {
+    if (!opts || typeof opts !== 'object') {
+        opts = { mode: opts };
+    }
+    
+    var mode = opts.mode;
+    var xfs = opts.fs || fs;
+    
+    if (mode === undefined) {
+        mode = _0777 & (~process.umask());
+    }
+    if (!made) made = null;
 
-function isObjectObject(o) {
-  return isObject(o) === true
-    && Object.prototype.toString.call(o) === '[object Object]';
-}
+    p = path.resolve(p);
 
-function isPlainObject(o) {
-  var ctor,prot;
+    try {
+        xfs.mkdirSync(p, mode);
+        made = made || p;
+    }
+    catch (err0) {
+        switch (err0.code) {
+            case 'ENOENT' :
+                made = sync(path.dirname(p), opts, made);
+                sync(p, opts, made);
+                break;
 
-  if (isObjectObject(o) === false) return false;
+            // In the case of any other error, just see if there's a dir
+            // there already.  If so, then hooray!  If not, then something
+            // is borked.
+            default:
+                var stat;
+                try {
+                    stat = xfs.statSync(p);
+                }
+                catch (err1) {
+                    throw err0;
+                }
+                if (!stat.isDirectory()) throw err0;
+                break;
+        }
+    }
 
-  // If has modified constructor
-  ctor = o.constructor;
-  if (typeof ctor !== 'function') return false;
-
-  // If has modified prototype
-  prot = ctor.prototype;
-  if (isObjectObject(prot) === false) return false;
-
-  // If constructor does not have an Object-specific method
-  if (prot.hasOwnProperty('isPrototypeOf') === false) {
-    return false;
-  }
-
-  // Most likely a plain Object
-  return true;
-}
-
-module.exports = isPlainObject;
+    return made;
+};
 
 
 /***/ }),
@@ -13204,24 +13195,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const rest_1 = __importDefault(__webpack_require__(0));
-const child_process_1 = __webpack_require__(129);
 const fs_1 = __importDefault(__webpack_require__(747));
-const node_fetch_1 = __importDefault(__webpack_require__(454));
 const zlib_1 = __importDefault(__webpack_require__(761));
 const tar_1 = __importDefault(__webpack_require__(885));
+const rest_1 = __importDefault(__webpack_require__(0));
+const node_fetch_1 = __importDefault(__webpack_require__(454));
+const child_process_1 = __webpack_require__(129);
 class Downloader {
-    constructor(token) {
-        this.githubClient = new rest_1.default({ auth: `token ${token}` });
+    constructor() {
+        this.githubClient = new rest_1.default();
     }
     download(version) {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
             console.debug(`Download URL: ${downloadUrl}`);
-            const response = yield node_fetch_1.default(downloadUrl);
             const trivyCmdBaseDir = process.env.GITHUB_WORKSPACE || '.';
-            const trivyCmdPath = yield this.saveTrivyCmd(response, trivyCmdBaseDir);
+            const trivyCmdPath = yield this.downloadTrivyCmd(downloadUrl, trivyCmdBaseDir);
             console.debug(`Trivy Command Path: ${trivyCmdPath}`);
             return trivyCmdPath;
         });
@@ -13233,9 +13223,9 @@ class Downloader {
             case 'darwin':
                 return 'macOS';
             default:
-                throw new Error(`Sorry, ${platform} is not supported.
-        Trivy support Linux, MacOS, FreeBSD and OpenBSD.
-        `);
+                const errorMsg = `Sorry, ${platform} is not supported.
+        Trivy support Linux, MacOS, FreeBSD and OpenBSD.`;
+                throw new Error(errorMsg);
         }
     }
     getDownloadUrl(version, os) {
@@ -13252,9 +13242,8 @@ class Downloader {
                 }
             }
             catch (error) {
-                throw new Error(`
-        The Trivy version that you specified does not exist.
-        Version: ${version}
+                throw new Error(`The Trivy version that you specified does not exist.
+      Version: ${version}
       `);
             }
             const filename = `trivy_${version}_${os}-64bit.tar.gz`;
@@ -13273,26 +13262,34 @@ class Downloader {
                 }
                 finally { if (e_1) throw e_1.error; }
             }
-            throw new Error(`Cloud not be found Trivy asset that You specified.
+            const errorMsg = `Cloud not be found Trivy asset that You specified.
     Version: ${version}
-    OS: ${os}
-    `);
+    OS: ${os}`;
+            throw new Error(errorMsg);
         });
     }
-    saveTrivyCmd(response, savedPath = '.') {
-        return new Promise((resolve, reject) => {
-            const extract = tar_1.default.extract({ path: savedPath });
-            response.body.pipe(zlib_1.default.createGunzip()).pipe(extract);
-            extract.on('finish', () => {
-                if (!this.trivyExists(savedPath)) {
-                    reject('Failed to extract Trivy command file.');
-                }
-                resolve(`${savedPath}/trivy`);
+    downloadTrivyCmd(downloadUrl, savedPath = '.') {
+        return __awaiter(this, void 0, void 0, function* () {
+            const response = yield node_fetch_1.default(downloadUrl);
+            return new Promise((resolve, reject) => {
+                const extract = tar_1.default.extract({ C: savedPath }, ['trivy']);
+                response.body
+                    .on('error', reject)
+                    .pipe(zlib_1.default.createGunzip())
+                    .on('error', reject)
+                    .pipe(extract)
+                    .on('error', reject)
+                    .on('finish', () => {
+                    if (!this.trivyExists(savedPath)) {
+                        reject('Failed to extract Trivy command file.');
+                    }
+                    resolve(`${savedPath}/trivy`);
+                });
             });
         });
     }
-    trivyExists(baseDir) {
-        const trivyCmdPaths = fs_1.default.readdirSync(baseDir).filter(f => f === 'trivy');
+    trivyExists(targetDir) {
+        const trivyCmdPaths = fs_1.default.readdirSync(targetDir).filter(f => f === 'trivy');
         return trivyCmdPaths.length === 1;
     }
 }
@@ -13319,9 +13316,9 @@ class Trivy {
             return JSON.parse(result.stdout);
         }
         throw new Error(`Failed vulnerability scan using Trivy.
-    stdout: ${result.stdout}
-    stderr: ${result.stderr}
-    erorr: ${result.error}
+      stdout: ${result.stdout}
+      stderr: ${result.stderr}
+      erorr: ${result.error}
     `);
     }
     static parse(vulnerabilities) {
@@ -16601,7 +16598,7 @@ module.exports = set;
 exports.c = exports.create = __webpack_require__(159)
 exports.r = exports.replace = __webpack_require__(630)
 exports.t = exports.list = __webpack_require__(381)
-exports.u = exports.update = __webpack_require__(931)
+exports.u = exports.update = __webpack_require__(966)
 exports.x = exports.extract = __webpack_require__(656)
 
 // classes
@@ -16797,55 +16794,11 @@ module.exports = (mode, isDir, portable) => {
 module.exports = hasNextPage
 
 const deprecate = __webpack_require__(370)
-const getPageLinks = __webpack_require__(577)
+const getPageLinks = __webpack_require__(13)
 
 function hasNextPage (link) {
   deprecate(`octokit.hasNextPage() – You can use octokit.paginate or async iterators instead: https://github.com/octokit/rest.js#pagination.`)
   return getPageLinks(link).next
-}
-
-
-/***/ }),
-
-/***/ 931:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-// tar -u
-
-const hlo = __webpack_require__(891)
-const r = __webpack_require__(630)
-// just call tar.r with the filter and mtimeCache
-
-const u = module.exports = (opt_, files, cb) => {
-  const opt = hlo(opt_)
-
-  if (!opt.file)
-    throw new TypeError('file is required')
-
-  if (opt.gzip)
-    throw new TypeError('cannot append to compressed archives')
-
-  if (!files || !Array.isArray(files) || !files.length)
-    throw new TypeError('no files or directories specified')
-
-  files = Array.from(files)
-
-  mtimeFilter(opt)
-  return r(opt, files, cb)
-}
-
-const mtimeFilter = opt => {
-  const filter = opt.filter
-
-  if (!opt.mtimeCache)
-    opt.mtimeCache = new Map()
-
-  opt.filter = filter ? (path, stat) =>
-    filter(path, stat) && !(opt.mtimeCache.get(path) > stat.mtime)
-    : (path, stat) => !(opt.mtimeCache.get(path) > stat.mtime)
 }
 
 
@@ -17452,56 +17405,41 @@ function withDefaults (request, newDefaults) {
 
 "use strict";
 
-const {PassThrough} = __webpack_require__(413);
 
-module.exports = options => {
-	options = Object.assign({}, options);
+// tar -u
 
-	const {array} = options;
-	let {encoding} = options;
-	const buffer = encoding === 'buffer';
-	let objectMode = false;
+const hlo = __webpack_require__(891)
+const r = __webpack_require__(630)
+// just call tar.r with the filter and mtimeCache
 
-	if (array) {
-		objectMode = !(encoding || buffer);
-	} else {
-		encoding = encoding || 'utf8';
-	}
+const u = module.exports = (opt_, files, cb) => {
+  const opt = hlo(opt_)
 
-	if (buffer) {
-		encoding = null;
-	}
+  if (!opt.file)
+    throw new TypeError('file is required')
 
-	let len = 0;
-	const ret = [];
-	const stream = new PassThrough({objectMode});
+  if (opt.gzip)
+    throw new TypeError('cannot append to compressed archives')
 
-	if (encoding) {
-		stream.setEncoding(encoding);
-	}
+  if (!files || !Array.isArray(files) || !files.length)
+    throw new TypeError('no files or directories specified')
 
-	stream.on('data', chunk => {
-		ret.push(chunk);
+  files = Array.from(files)
 
-		if (objectMode) {
-			len = ret.length;
-		} else {
-			len += chunk.length;
-		}
-	});
+  mtimeFilter(opt)
+  return r(opt, files, cb)
+}
 
-	stream.getBufferedValue = () => {
-		if (array) {
-			return ret;
-		}
+const mtimeFilter = opt => {
+  const filter = opt.filter
 
-		return buffer ? Buffer.concat(ret, len) : ret.join('');
-	};
+  if (!opt.mtimeCache)
+    opt.mtimeCache = new Map()
 
-	stream.getBufferedLength = () => len;
-
-	return stream;
-};
+  opt.filter = filter ? (path, stat) =>
+    filter(path, stat) && !(opt.mtimeCache.get(path) > stat.mtime)
+    : (path, stat) => !(opt.mtimeCache.get(path) > stat.mtime)
+}
 
 
 /***/ }),
@@ -17550,6 +17488,74 @@ function onceStrict (fn) {
   f.onceError = name + " shouldn't be called more than once"
   f.called = false
   return f
+}
+
+
+/***/ }),
+
+/***/ 991:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticationRequestError;
+
+const { RequestError } = __webpack_require__(463);
+
+function authenticationRequestError(state, error, options) {
+  if (!error.headers) throw error;
+
+  const otpRequired = /required/.test(error.headers["x-github-otp"] || "");
+  // handle "2FA required" error only
+  if (error.status !== 401 || !otpRequired) {
+    throw error;
+  }
+
+  if (
+    error.status === 401 &&
+    otpRequired &&
+    error.request &&
+    error.request.headers["x-github-otp"]
+  ) {
+    if (state.otp) {
+      delete state.otp; // no longer valid, request again
+    } else {
+      throw new RequestError(
+        "Invalid one-time password for two-factor authentication",
+        401,
+        {
+          headers: error.headers,
+          request: options
+        }
+      );
+    }
+  }
+
+  if (typeof state.auth.on2fa !== "function") {
+    throw new RequestError(
+      "2FA required, but options.on2fa is not a function. See https://github.com/octokit/rest.js#authentication",
+      401,
+      {
+        headers: error.headers,
+        request: options
+      }
+    );
+  }
+
+  return Promise.resolve()
+    .then(() => {
+      return state.auth.on2fa();
+    })
+    .then(oneTimePassword => {
+      const newOptions = Object.assign(options, {
+        headers: Object.assign(options.headers, {
+          "x-github-otp": oneTimePassword
+        })
+      });
+      return state.octokit.request(newOptions).then(response => {
+        // If OTP still valid, then persist it for following requests
+        state.otp = oneTimePassword;
+        return response;
+      });
+    });
 }
 
 
