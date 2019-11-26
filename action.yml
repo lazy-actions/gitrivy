@@ -1,4 +1,4 @@
-name: 'Gitrivy'
+name: 'Trivy Action'
 description: 'Scan docker image vulnerability using Trivy and create GitHub Issue'
 author: 'homoluctus'
 inputs:
