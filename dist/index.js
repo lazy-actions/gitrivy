@@ -13211,7 +13211,7 @@ class Downloader {
     constructor() {
         this.githubClient = new rest_1.default();
     }
-    download(version = 'latest', trivyCmdDir = __dirname) {
+    download(version, trivyCmdDir = __dirname) {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);

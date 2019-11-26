@@ -25,7 +25,7 @@ export class Downloader {
   }
 
   public async download(
-    version: string = 'latest',
+    version: string,
     trivyCmdDir: string = __dirname,
   ): Promise<string> {
     const os: string = this.checkPlatform(process.platform);
