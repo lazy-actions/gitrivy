@@ -26,7 +26,7 @@ export class Downloader {
 
   public async download(
     version: string,
-    trivyCmdDir: string = __dirname,
+    trivyCmdDir: string = __dirname
   ): Promise<string> {
     const os: string = this.checkPlatform(process.platform);
     const downloadUrl: string = await this.getDownloadUrl(version, os);
@@ -34,7 +34,7 @@ export class Downloader {
     const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || trivyCmdDir;
     const trivyCmdPath: string = await this.downloadTrivyCmd(
       downloadUrl,
-      trivyCmdBaseDir,
+      trivyCmdBaseDir
     );
     console.debug(`Trivy Command Path: ${trivyCmdPath}`);
     return trivyCmdPath;
@@ -89,7 +89,7 @@ export class Downloader {
 
   private async downloadTrivyCmd(
     downloadUrl: string,
-    savedPath: string = '.',
+    savedPath: string = '.'
   ): Promise<string> {
     const response: Response = await fetch(downloadUrl);
 
@@ -122,20 +122,22 @@ export class Trivy {
   static scan(
     trivyPath: string,
     image: string,
-    options: TrivyOption,
+    option: TrivyOption
   ): Vulnerability[] {
+    Trivy.validateOption(option);
+
     const args: string[] = [
       '--severity',
-      options.severity,
+      option.severity,
       '--vuln-type',
-      options.vulnType,
+      option.vulnType,
       '--format',
       'json',
       '--quiet',
       '--no-progress',
     ];
 
-    if (options.ignoreUnfixed) {
+    if (option.ignoreUnfixed) {
       args.push('--ignore-unfixed');
     }
 
@@ -145,7 +147,10 @@ export class Trivy {
     });
 
     if (result.stdout && result.stdout.length > 0) {
-      return JSON.parse(result.stdout);
+      const vulnerabilities: Vulnerability[] = JSON.parse(result.stdout);
+      if (vulnerabilities.length > 0) {
+        return vulnerabilities;
+      }
     }
 
     throw new Error(`Failed vulnerability scan using Trivy.
@@ -182,5 +187,28 @@ export class Trivy {
     }
     console.debug(issueContent);
     return issueContent;
+  }
+
+  static validateOption(option: TrivyOption): boolean {
+    const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
+    const allowedVulnTypes = /os|library/;
+
+    for (const severity of option.severity.split(',')) {
+      if (!allowedSeverities.test(severity)) {
+        throw new Error(
+          `severity option error: ${severity} is unknown severity`
+        );
+      }
+    }
+
+    for (const vulnType of option.vulnType.split(',')) {
+      if (!allowedVulnTypes.test(vulnType)) {
+        throw new Error(
+          `vuln-type option error: ${vulnType} is unknown vuln-type`
+        );
+      }
+    }
+
+    return true;
   }
 }
