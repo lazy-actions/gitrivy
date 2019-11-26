@@ -32,13 +32,13 @@ async function run() {
     const result: Vulnerability[] = Trivy.scan(
       trivyCmdPath,
       image,
-      trivyOptions,
+      trivyOptions
     );
     const issueContent: string = Trivy.parse(result);
 
     if (issueContent === '') {
       core.info(
-        'Vulnerabilities were not found.\nYour maintenance looks good 👍',
+        'Vulnerabilities were not found.\nYour maintenance looks good 👍'
       );
       return;
     }

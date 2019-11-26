@@ -13307,18 +13307,19 @@ Downloader.trivyRepository = {
     repo: 'trivy',
 };
 class Trivy {
-    static scan(trivyPath, image, options) {
+    static scan(trivyPath, image, option) {
+        Trivy.validateOption(option);
         const args = [
             '--severity',
-            options.severity,
+            option.severity,
             '--vuln-type',
-            options.vulnType,
+            option.vulnType,
             '--format',
             'json',
             '--quiet',
             '--no-progress',
         ];
-        if (options.ignoreUnfixed) {
+        if (option.ignoreUnfixed) {
             args.push('--ignore-unfixed');
         }
         args.push(image);
@@ -13326,7 +13327,10 @@ class Trivy {
             encoding: 'utf-8',
         });
         if (result.stdout && result.stdout.length > 0) {
-            return JSON.parse(result.stdout);
+            const vulnerabilities = JSON.parse(result.stdout);
+            if (vulnerabilities.length > 0) {
+                return vulnerabilities;
+            }
         }
         throw new Error(`Failed vulnerability scan using Trivy.
       stdout: ${result.stdout}
@@ -13357,6 +13361,21 @@ class Trivy {
         }
         console.debug(issueContent);
         return issueContent;
+    }
+    static validateOption(option) {
+        const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
+        const allowedVulnTypes = /os|library/;
+        for (const severity of option.severity.split(',')) {
+            if (!allowedSeverities.test(severity)) {
+                throw new Error(`severity option error: ${severity} is unknown severity`);
+            }
+        }
+        for (const vulnType of option.vulnType.split(',')) {
+            if (!allowedVulnTypes.test(vulnType)) {
+                throw new Error(`vuln-type option error: ${vulnType} is unknown vuln-type`);
+            }
+        }
+        return true;
     }
 }
 exports.Trivy = Trivy;

@@ -4,7 +4,7 @@ import { IssueOption, IssueResponse } from './interface';
 
 export async function createIssue(
   token: string,
-  options: IssueOption,
+  options: IssueOption
 ): Promise<IssueResponse> {
   const client: Octokit = new github.GitHub(token);
   const {
