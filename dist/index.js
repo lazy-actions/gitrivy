@@ -6583,7 +6583,7 @@ function run() {
             const trivyOptions = {
                 severity: core.getInput('severity').replace(/\s+/g, ''),
                 vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
-                ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true' ? true : false,
+                ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
             };
             const downloader = new trivy_1.Downloader();
             const trivyCmdPath = yield downloader.download(trivyVersion);

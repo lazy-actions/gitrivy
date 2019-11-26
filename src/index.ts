@@ -24,8 +24,7 @@ async function run() {
     const trivyOptions: TrivyOption = {
       severity: core.getInput('severity').replace(/\s+/g, ''),
       vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
-      ignoreUnfixed:
-        core.getInput('ignore_unfixed').toLowerCase() === 'true' ? true : false,
+      ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
     };
 
     const downloader = new Downloader();
