@@ -26,7 +26,7 @@ interface CVE {
   PkgName: string;
   InstalledVersion: string;
   FixedVersion: string;
-  Title: string;
+  Title?: string;
   Description: string;
   Severity: string;
   References: string[];
