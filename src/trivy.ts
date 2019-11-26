@@ -24,11 +24,14 @@ export class Downloader {
     this.githubClient = new Octokit();
   }
 
-  public async download(version: string): Promise<string> {
+  public async download(
+    version: string = 'latest',
+    trivyCmdDir: string = __dirname,
+  ): Promise<string> {
     const os: string = this.checkPlatform(process.platform);
     const downloadUrl: string = await this.getDownloadUrl(version, os);
     console.debug(`Download URL: ${downloadUrl}`);
-    const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || '.';
+    const trivyCmdBaseDir: string = process.env.GITHUB_WORKSPACE || trivyCmdDir;
     const trivyCmdPath: string = await this.downloadTrivyCmd(
       downloadUrl,
       trivyCmdBaseDir,

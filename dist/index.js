@@ -2950,10 +2950,10 @@ const github = __importStar(__webpack_require__(469));
 function createIssue(token, options) {
     return __awaiter(this, void 0, void 0, function* () {
         const client = new github.GitHub(token);
-        const { data: issue } = yield client.issues.create(Object.assign(Object.assign({}, github.context.repo), options));
+        const { data: issue, } = yield client.issues.create(Object.assign(Object.assign({}, github.context.repo), options));
         const result = {
             issueNumber: issue.number,
-            htmlUrl: issue.html_url
+            htmlUrl: issue.html_url,
         };
         return result;
     });
@@ -6573,7 +6573,9 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const token = core.getInput('token', { required: true });
-            const trivyVersion = core.getInput('trivy_version').replace(/^v/, '');
+            const trivyVersion = core
+                .getInput('trivy_version')
+                .replace(/^v/, '');
             const image = core.getInput('image') || process.env.IMAGE_NAME;
             if (image === undefined || image === '') {
                 throw new Error('Please specify scan target image name');
@@ -6581,9 +6583,7 @@ function run() {
             const trivyOptions = {
                 severity: core.getInput('severity').replace(/\s+/g, ''),
                 vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
-                ignoreUnfixed: core.getInput('ignore_unfixed')
-                    .toLowerCase() === 'true'
-                    ? true : false
+                ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true' ? true : false,
             };
             const downloader = new trivy_1.Downloader();
             const trivyCmdPath = yield downloader.download(trivyVersion);
@@ -6596,8 +6596,14 @@ function run() {
             const issueOptions = {
                 title: core.getInput('issue_title'),
                 body: issueContent,
-                labels: core.getInput('issue_label').replace(/\s+/g, '').split(','),
-                assignees: core.getInput('issue_assignee').replace(/\s+/g, '').split(','),
+                labels: core
+                    .getInput('issue_label')
+                    .replace(/\s+/g, '')
+                    .split(','),
+                assignees: core
+                    .getInput('issue_assignee')
+                    .replace(/\s+/g, '')
+                    .split(','),
             };
             const output = yield issue_1.createIssue(token, issueOptions);
             core.setOutput('html_url', output.htmlUrl);
@@ -13205,12 +13211,12 @@ class Downloader {
     constructor() {
         this.githubClient = new rest_1.default();
     }
-    download(version) {
+    download(version = 'latest', trivyCmdDir = __dirname) {
         return __awaiter(this, void 0, void 0, function* () {
             const os = this.checkPlatform(process.platform);
             const downloadUrl = yield this.getDownloadUrl(version, os);
             console.debug(`Download URL: ${downloadUrl}`);
-            const trivyCmdBaseDir = process.env.GITHUB_WORKSPACE || '.';
+            const trivyCmdBaseDir = process.env.GITHUB_WORKSPACE || trivyCmdDir;
             const trivyCmdPath = yield this.downloadTrivyCmd(downloadUrl, trivyCmdBaseDir);
             console.debug(`Trivy Command Path: ${trivyCmdPath}`);
             return trivyCmdPath;
@@ -13289,21 +13295,26 @@ class Downloader {
         });
     }
     trivyExists(targetDir) {
-        const trivyCmdPaths = fs_1.default.readdirSync(targetDir).filter(f => f === 'trivy');
+        const trivyCmdPaths = fs_1.default
+            .readdirSync(targetDir)
+            .filter(f => f === 'trivy');
         return trivyCmdPaths.length === 1;
     }
 }
 exports.Downloader = Downloader;
 Downloader.trivyRepository = {
     owner: 'aquasecurity',
-    repo: 'trivy'
+    repo: 'trivy',
 };
 class Trivy {
     static scan(trivyPath, image, options) {
         const args = [
-            '--severity', options.severity,
-            '--vuln-type', options.vulnType,
-            '--format', 'json',
+            '--severity',
+            options.severity,
+            '--vuln-type',
+            options.vulnType,
+            '--format',
+            'json',
             '--quiet',
             '--no-progress',
         ];
@@ -13311,7 +13322,9 @@ class Trivy {
             args.push('--ignore-unfixed');
         }
         args.push(image);
-        const result = child_process_1.spawnSync(trivyPath, args, { encoding: 'utf-8' });
+        const result = child_process_1.spawnSync(trivyPath, args, {
+            encoding: 'utf-8',
+        });
         if (result.stdout && result.stdout.length > 0) {
             return JSON.parse(result.stdout);
         }
@@ -13333,7 +13346,8 @@ class Trivy {
             for (const cve of vuln.Vulnerabilities) {
                 vulnTable += `|${cve.Title || 'N/A'}|${cve.Severity || 'N/A'}`;
                 vulnTable += `|${cve.VulnerabilityID || 'N/A'}|${cve.PkgName || 'N/A'}`;
-                vulnTable += `|${cve.InstalledVersion || 'N/A'}|${cve.FixedVersion || 'N/A'}|`;
+                vulnTable += `|${cve.InstalledVersion || 'N/A'}|${cve.FixedVersion ||
+                    'N/A'}|`;
                 for (const reference of cve.References) {
                     vulnTable += `${reference || 'N/A'}<br>`;
                 }
