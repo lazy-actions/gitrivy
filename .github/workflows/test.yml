@@ -12,22 +12,6 @@ env:
   IMAGE_NAME: alpine:3.10.1
 
 jobs:
-  jest:
-    name: Test with jest
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v1
-
-      - uses: actions/setup-node@v1
-        with:
-          node-version: '12.x'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Jest
-        run: npm run test
-
   test1:
     name: Test for with parameter
     runs-on: ubuntu-18.04
@@ -58,7 +42,7 @@ jobs:
       if: always()
       with:
         type: ${{ job.status }}
-        job_name: ':ts: *test gitrivy*'
+        job_name: ':ts: *test gitrivy (test1)*'
         channel: '#develop'
         url: ${{ secrets.SLACK_WEBHOOK }}
 
@@ -91,7 +75,7 @@ jobs:
         if: always()
         with:
           type: ${{ job.status }}
-          job_name: ':ts: *test gitrivy*'
+          job_name: ':ts: *test gitrivy (test2)*'
           channel: '#develop'
           url: ${{ secrets.SLACK_WEBHOOK }}
 
@@ -121,6 +105,6 @@ jobs:
         if: always()
         with:
           type: ${{ job.status }}
-          job_name: ':ts: *test gitrivy*'
+          job_name: ':ts: *test gitrivy (test3)*'
           channel: '#develop'
           url: ${{ secrets.SLACK_WEBHOOK }}

@@ -1,0 +1,26 @@
+name: Unit Test
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'dist/**'
+      - tsconfig.json
+      - package*
+
+jobs:
+  jest:
+    name: Test with jest
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Jest
+        run: npm run test
