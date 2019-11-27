@@ -10,31 +10,42 @@ import {
 
 async function run() {
   try {
-    const token: string = core.getInput('token', { required: true });
     const trivyVersion: string = core
       .getInput('trivy_version')
       .replace(/^v/, '');
     const image: string | undefined =
       core.getInput('image') || process.env.IMAGE_NAME;
+    const issueFlag: boolean = core.getInput('issue').toLowerCase() == 'true';
 
     if (image === undefined || image === '') {
       throw new Error('Please specify scan target image name');
     }
 
-    const trivyOptions: TrivyOption = {
+    const trivyOption: TrivyOption = {
       severity: core.getInput('severity').replace(/\s+/g, ''),
       vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
       ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
+      format: issueFlag ? 'json' : 'table',
     };
 
     const downloader = new Downloader();
     const trivyCmdPath: string = await downloader.download(trivyVersion);
-    const result: Vulnerability[] = Trivy.scan(
+    const result: Vulnerability[] | string = Trivy.scan(
       trivyCmdPath,
       image,
-      trivyOptions
+      trivyOption
     );
-    const issueContent: string = Trivy.parse(result);
+
+    if (!issueFlag) {
+      core.info(
+        `Not create a issue because issue parameter is false.
+        Vulnerabilities:
+        ${result}`
+      );
+      return;
+    }
+
+    const issueContent: string = Trivy.parse(result as Vulnerability[]);
 
     if (issueContent === '') {
       core.info(
@@ -43,7 +54,7 @@ async function run() {
       return;
     }
 
-    const issueOptions: IssueOption = {
+    const issueOption: IssueOption = {
       title: core.getInput('issue_title'),
       body: issueContent,
       labels: core
@@ -55,7 +66,8 @@ async function run() {
         .replace(/\s+/g, '')
         .split(','),
     };
-    const output: IssueResponse = await createIssue(token, issueOptions);
+    const token: string = core.getInput('token', { required: true });
+    const output: IssueResponse = await createIssue(token, issueOption);
     core.setOutput('html_url', output.htmlUrl);
     core.setOutput('issue_number', output.issueNumber.toString());
   } catch (error) {

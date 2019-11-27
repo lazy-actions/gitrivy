@@ -123,7 +123,7 @@ export class Trivy {
     trivyPath: string,
     image: string,
     option: TrivyOption
-  ): Vulnerability[] {
+  ): Vulnerability[] | string {
     Trivy.validateOption(option);
 
     const args: string[] = [
@@ -132,22 +132,21 @@ export class Trivy {
       '--vuln-type',
       option.vulnType,
       '--format',
-      'json',
+      option.format,
       '--quiet',
       '--no-progress',
     ];
 
-    if (option.ignoreUnfixed) {
-      args.push('--ignore-unfixed');
-    }
-
+    if (option.ignoreUnfixed) args.push('--ignore-unfixed');
     args.push(image);
+
     const result: SpawnSyncReturns<string> = spawnSync(trivyPath, args, {
       encoding: 'utf-8',
     });
 
     if (result.stdout && result.stdout.length > 0) {
-      const vulnerabilities: Vulnerability[] = JSON.parse(result.stdout);
+      const vulnerabilities: Vulnerability[] | string =
+        option.format === 'json' ? JSON.parse(result.stdout) : result.stdout;
       if (vulnerabilities.length > 0) {
         return vulnerabilities;
       }
@@ -185,7 +184,6 @@ export class Trivy {
       }
       issueContent += `${vulnTable}\n\n`;
     }
-    console.debug(issueContent);
     return issueContent;
   }
 

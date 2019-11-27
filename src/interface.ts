@@ -14,6 +14,7 @@ export interface TrivyOption {
   severity: string;
   vulnType: string;
   ignoreUnfixed: boolean;
+  format: string;
 }
 
 export interface Vulnerability {
