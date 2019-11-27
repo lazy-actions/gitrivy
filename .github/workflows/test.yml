@@ -94,3 +94,33 @@ jobs:
           job_name: ':ts: *test gitrivy*'
           channel: '#develop'
           url: ${{ secrets.SLACK_WEBHOOK }}
+
+  test3:
+    name: Test not to create issue
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependencies
+        run: npm install
+
+      # - name: Test
+      #   run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Pull docker image
+        run: docker pull alpine:3.10.3
+
+      - uses: ./
+        with:
+          issue: 'false'
+
+      - uses: homoluctus/slatify@v1.9.0
+        if: always()
+        with:
+          type: ${{ job.status }}
+          job_name: ':ts: *test gitrivy*'
+          channel: '#develop'
+          url: ${{ secrets.SLACK_WEBHOOK }}

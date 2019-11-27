@@ -128,9 +128,15 @@ describe('Scan', () => {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: true,
+      format: 'json',
     };
-    const result: Vulnerability[] = Trivy.scan(trivyPath, image, options);
+    const result: Vulnerability[] | string = Trivy.scan(
+      trivyPath,
+      image,
+      options
+    );
     expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result).toBeInstanceOf(Object);
   });
 
   test('without ignoreUnfixed', () => {
@@ -138,9 +144,31 @@ describe('Scan', () => {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: false,
+      format: 'json',
     };
-    const result: Vulnerability[] = Trivy.scan(trivyPath, image, options);
+    const result: Vulnerability[] | string = Trivy.scan(
+      trivyPath,
+      image,
+      options
+    );
     expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result).toBeInstanceOf(Object);
+  });
+
+  test('with table format', () => {
+    const options: TrivyOption = {
+      severity: 'HIGH,CRITICAL',
+      vulnType: 'os,library',
+      ignoreUnfixed: false,
+      format: 'table',
+    };
+    const result: Vulnerability[] | string = Trivy.scan(
+      trivyPath,
+      image,
+      options
+    );
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result).toMatch(/alpine:3\.10/);
   });
 
   test('with invalid severity', () => {
@@ -148,6 +176,7 @@ describe('Scan', () => {
       severity: 'INVALID',
       vulnType: 'os,library',
       ignoreUnfixed: true,
+      format: 'json',
     };
     expect(() => {
       Trivy.scan(trivyPath, image, invalidOption);
@@ -159,6 +188,7 @@ describe('Scan', () => {
       severity: 'HIGH',
       vulnType: 'INVALID',
       ignoreUnfixed: true,
+      format: 'json',
     };
     expect(() => {
       Trivy.scan(trivyPath, image, invalidOption);

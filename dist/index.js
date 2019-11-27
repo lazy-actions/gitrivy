@@ -6572,28 +6572,35 @@ const issue_1 = __webpack_require__(163);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const token = core.getInput('token', { required: true });
             const trivyVersion = core
                 .getInput('trivy_version')
                 .replace(/^v/, '');
             const image = core.getInput('image') || process.env.IMAGE_NAME;
+            const issueFlag = core.getInput('issue').toLowerCase() == 'true';
             if (image === undefined || image === '') {
                 throw new Error('Please specify scan target image name');
             }
-            const trivyOptions = {
+            const trivyOption = {
                 severity: core.getInput('severity').replace(/\s+/g, ''),
                 vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
                 ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
+                format: issueFlag ? 'json' : 'table',
             };
             const downloader = new trivy_1.Downloader();
             const trivyCmdPath = yield downloader.download(trivyVersion);
-            const result = trivy_1.Trivy.scan(trivyCmdPath, image, trivyOptions);
+            const result = trivy_1.Trivy.scan(trivyCmdPath, image, trivyOption);
+            if (!issueFlag) {
+                core.info(`Not create a issue because issue parameter is false.
+        Vulnerabilities:
+        ${result}`);
+                return;
+            }
             const issueContent = trivy_1.Trivy.parse(result);
             if (issueContent === '') {
                 core.info('Vulnerabilities were not found.\nYour maintenance looks good 👍');
                 return;
             }
-            const issueOptions = {
+            const issueOption = {
                 title: core.getInput('issue_title'),
                 body: issueContent,
                 labels: core
@@ -6605,7 +6612,8 @@ function run() {
                     .replace(/\s+/g, '')
                     .split(','),
             };
-            const output = yield issue_1.createIssue(token, issueOptions);
+            const token = core.getInput('token', { required: true });
+            const output = yield issue_1.createIssue(token, issueOption);
             core.setOutput('html_url', output.htmlUrl);
             core.setOutput('issue_number', output.issueNumber.toString());
         }
@@ -13315,19 +13323,18 @@ class Trivy {
             '--vuln-type',
             option.vulnType,
             '--format',
-            'json',
+            option.format,
             '--quiet',
             '--no-progress',
         ];
-        if (option.ignoreUnfixed) {
+        if (option.ignoreUnfixed)
             args.push('--ignore-unfixed');
-        }
         args.push(image);
         const result = child_process_1.spawnSync(trivyPath, args, {
             encoding: 'utf-8',
         });
         if (result.stdout && result.stdout.length > 0) {
-            const vulnerabilities = JSON.parse(result.stdout);
+            const vulnerabilities = option.format === 'json' ? JSON.parse(result.stdout) : result.stdout;
             if (vulnerabilities.length > 0) {
                 return vulnerabilities;
             }
@@ -13359,7 +13366,6 @@ class Trivy {
             }
             issueContent += `${vulnTable}\n\n`;
         }
-        console.debug(issueContent);
         return issueContent;
     }
     static validateOption(option) {
