@@ -6,6 +6,7 @@ import fetch, { Response } from 'node-fetch';
 import { spawnSync, SpawnSyncReturns } from 'child_process';
 
 import { TrivyOption, Vulnerability } from './interface';
+import { defaultCoreCipherList } from 'constants';
 
 interface Repository {
   owner: string;
@@ -119,12 +120,12 @@ export class Downloader {
 }
 
 export class Trivy {
-  static scan(
+  public scan(
     trivyPath: string,
     image: string,
     option: TrivyOption
   ): Vulnerability[] | string {
-    Trivy.validateOption(option);
+    this.validateOption(option);
 
     const args: string[] = [
       '--severity',
@@ -159,7 +160,7 @@ export class Trivy {
     `);
   }
 
-  static parse(vulnerabilities: Vulnerability[]): string {
+  public parse(vulnerabilities: Vulnerability[]): string {
     let issueContent: string = '';
 
     for (const vuln of vulnerabilities) {
@@ -187,26 +188,39 @@ export class Trivy {
     return issueContent;
   }
 
-  static validateOption(option: TrivyOption): boolean {
+  private validateOption(option: TrivyOption): void {
+    this.validateSeverity(option.severity.split(','));
+    this.validateVulnType(option.vulnType.split(','));
+  }
+
+  private validateSeverity(severities: string[]): boolean {
     const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-    const allowedVulnTypes = /os|library/;
-
-    for (const severity of option.severity.split(',')) {
-      if (!allowedSeverities.test(severity)) {
-        throw new Error(
-          `severity option error: ${severity} is unknown severity`
-        );
-      }
+    if (!validateArrayOption(allowedSeverities, severities)) {
+      throw new Error(
+        `Trivy option error: ${severities.join(',')} is unknown severity.
+        Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`
+      );
     }
-
-    for (const vulnType of option.vulnType.split(',')) {
-      if (!allowedVulnTypes.test(vulnType)) {
-        throw new Error(
-          `vuln-type option error: ${vulnType} is unknown vuln-type`
-        );
-      }
-    }
-
     return true;
   }
+
+  private validateVulnType(vulnTypes: string[]): boolean {
+    const allowedVulnTypes = /os|library/;
+    if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
+      throw new Error(
+        `Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
+        Trivy supports os and library.`
+      );
+    }
+    return true;
+  }
+}
+
+function validateArrayOption(allowedValue: RegExp, options: string[]): boolean {
+  for (const option of options) {
+    if (!allowedValue.test(option)) {
+      return false;
+    }
+  }
+  return true;
 }

@@ -6588,14 +6588,15 @@ function run() {
             };
             const downloader = new trivy_1.Downloader();
             const trivyCmdPath = yield downloader.download(trivyVersion);
-            const result = trivy_1.Trivy.scan(trivyCmdPath, image, trivyOption);
+            const trivy = new trivy_1.Trivy();
+            const result = trivy.scan(trivyCmdPath, image, trivyOption);
             if (!issueFlag) {
                 core.info(`Not create a issue because issue parameter is false.
         Vulnerabilities:
         ${result}`);
                 return;
             }
-            const issueContent = trivy_1.Trivy.parse(result);
+            const issueContent = trivy.parse(result);
             if (issueContent === '') {
                 core.info('Vulnerabilities were not found.\nYour maintenance looks good 👍');
                 return;
@@ -13315,8 +13316,8 @@ Downloader.trivyRepository = {
     repo: 'trivy',
 };
 class Trivy {
-    static scan(trivyPath, image, option) {
-        Trivy.validateOption(option);
+    scan(trivyPath, image, option) {
+        this.validateOption(option);
         const args = [
             '--severity',
             option.severity,
@@ -13345,7 +13346,7 @@ class Trivy {
       erorr: ${result.error}
     `);
     }
-    static parse(vulnerabilities) {
+    parse(vulnerabilities) {
         let issueContent = '';
         for (const vuln of vulnerabilities) {
             if (vuln.Vulnerabilities === null)
@@ -13368,23 +13369,36 @@ class Trivy {
         }
         return issueContent;
     }
-    static validateOption(option) {
+    validateOption(option) {
+        this.validateSeverity(option.severity.split(','));
+        this.validateVulnType(option.vulnType.split(','));
+    }
+    validateSeverity(severities) {
         const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-        const allowedVulnTypes = /os|library/;
-        for (const severity of option.severity.split(',')) {
-            if (!allowedSeverities.test(severity)) {
-                throw new Error(`severity option error: ${severity} is unknown severity`);
-            }
+        if (!validateArrayOption(allowedSeverities, severities)) {
+            throw new Error(`Trivy option error: ${severities.join(',')} is unknown severity.
+        Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`);
         }
-        for (const vulnType of option.vulnType.split(',')) {
-            if (!allowedVulnTypes.test(vulnType)) {
-                throw new Error(`vuln-type option error: ${vulnType} is unknown vuln-type`);
-            }
+        return true;
+    }
+    validateVulnType(vulnTypes) {
+        const allowedVulnTypes = /os|library/;
+        if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
+            throw new Error(`Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
+        Trivy supports os and library.`);
         }
         return true;
     }
 }
 exports.Trivy = Trivy;
+function validateArrayOption(allowedValue, options) {
+    for (const option of options) {
+        if (!allowedValue.test(option)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 
 /***/ }),
