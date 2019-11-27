@@ -12,14 +12,15 @@ If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 
 ### Inputs
 
-|Parameter|Required|Default|Description|
+|Parameter|Required|Default Value|Description|
 |:--:|:--:|:--:|:--|
-|token|True|N/A|GitHub access token<br>${{ secrets.GITHUB_TOKEN }} is recommended|
 |trivy_version|False|latest|Trivy version|
 |image|True|N/A|The target image name to scan the vulnerability<br>Specify this parameter or `IMAGE_NAME` environment variable|
 |severity|False|HIGH,CRITICAL|Sevirities of vulunerabilities (separeted by commma)|
 |vuln_type|False|os,library|Scan target are os and / or library (separeted by commma)|
-|ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Specify true or false|
+|ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Please specify `true` or `false`|
+|issue|False|true|Decide whether creating issue when vulnerabilities are found by trivy.<br>Please specify `true` or `false`|
+|token|True if issue parameter is true else False|N/A|GitHub Access Token.<br>${{ secrets.GITHUB_TOKEN }} is recommended.|
 |issue_title|False|Security Alert|Issue title|
 |issue_label|False|trivy,vulnerability|Issue label (separeted by commma)|
 |issue_assignee|False|N/A|Issue assignee (separeted by commma)|
