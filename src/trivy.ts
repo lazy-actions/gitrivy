@@ -1,22 +1,19 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import tar from 'tar';
-import Octokit, { ReposGetLatestReleaseResponse } from '@octokit/rest';
+import Octokit, {
+  ReposGetLatestReleaseResponse,
+  ReposGetLatestReleaseResponseAssetsItem,
+} from '@octokit/rest';
 import fetch, { Response } from 'node-fetch';
 import { spawnSync, SpawnSyncReturns } from 'child_process';
 
 import { TrivyOption, Vulnerability } from './interface';
-import { defaultCoreCipherList } from 'constants';
-
-interface Repository {
-  owner: string;
-  repo: string;
-}
 
 export class Downloader {
   githubClient: Octokit;
 
-  static readonly trivyRepository: Repository = {
+  static readonly trivyRepository = {
     owner: 'aquasecurity',
     repo: 'trivy',
   };
@@ -55,37 +52,45 @@ export class Downloader {
   }
 
   private async getDownloadUrl(version: string, os: string): Promise<string> {
+    try {
+      const response = await this.getAssets(version);
+      const filename: string = `trivy_${response.version}_${os}-64bit.tar.gz`;
+      for (const asset of response.assets) {
+        if (asset.name === filename) {
+          return asset.browser_download_url;
+        }
+      }
+      throw new Error();
+    } catch (error) {
+      const errorMsg: string = `
+      Cloud not be found a Trivy asset that you specified.
+      Version: ${version}
+      OS: ${os}
+      `;
+      throw new Error(errorMsg);
+    }
+  }
+
+  private async getAssets(
+    version: string
+  ): Promise<{
+    assets: ReposGetLatestReleaseResponseAssetsItem[];
+    version: string;
+  }> {
     let response: Octokit.Response<ReposGetLatestReleaseResponse>;
 
-    try {
-      if (version === 'latest') {
-        response = await this.githubClient.repos.getLatestRelease({
-          ...Downloader.trivyRepository,
-        });
-        version = response.data.tag_name.replace(/v/, '');
-      } else {
-        response = await this.githubClient.repos.getReleaseByTag({
-          ...Downloader.trivyRepository,
-          tag: `v${version}`,
-        });
-      }
-    } catch (error) {
-      throw new Error(`The Trivy version that you specified does not exist.
-      Version: ${version}
-      `);
+    if (version === 'latest') {
+      response = await this.githubClient.repos.getLatestRelease({
+        ...Downloader.trivyRepository,
+      });
+      version = response.data.tag_name.replace(/v/, '');
+    } else {
+      response = await this.githubClient.repos.getReleaseByTag({
+        ...Downloader.trivyRepository,
+        tag: `v${version}`,
+      });
     }
-
-    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`;
-    for await (const asset of response.data.assets) {
-      if (asset.name === filename) {
-        return asset.browser_download_url;
-      }
-    }
-
-    const errorMsg: string = `Cloud not be found Trivy asset that You specified.
-    Version: ${version}
-    OS: ${os}`;
-    throw new Error(errorMsg);
+    return { assets: response.data.assets, version };
   }
 
   private async downloadTrivyCmd(
@@ -95,10 +100,11 @@ export class Downloader {
     const response: Response = await fetch(downloadUrl);
 
     return new Promise((resolve, reject) => {
+      const gunzip = zlib.createGunzip();
       const extract = tar.extract({ C: savedPath }, ['trivy']);
       response.body
         .on('error', reject)
-        .pipe(zlib.createGunzip())
+        .pipe(gunzip)
         .on('error', reject)
         .pipe(extract)
         .on('error', reject)

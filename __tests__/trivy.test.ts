@@ -55,7 +55,7 @@ describe('getDownloadUrl', () => {
     await expect(
       downloader['getDownloadUrl'](version, os)
     ).rejects.toThrowError(
-      'The Trivy version that you specified does not exist.'
+      'Cloud not be found a Trivy asset that you specified.'
     );
   });
 
@@ -65,7 +65,7 @@ describe('getDownloadUrl', () => {
     await expect(
       downloader['getDownloadUrl'](version, os)
     ).rejects.toThrowError(
-      'Cloud not be found Trivy asset that You specified.'
+      'Cloud not be found a Trivy asset that you specified.'
     );
   });
 });
