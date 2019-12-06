@@ -41,7 +41,7 @@ name: Vulnerability Scan
 
 on:
   schedule:
-    - cron: '00 9 * * *'
+    - cron: '0 9 * * *'
 
 jobs:
   scan:
@@ -51,7 +51,7 @@ jobs:
       - name: Pull docker image
         run: docker pull sample
 
-      - uses: homoluctus/gitrivy@v0.0.1
+      - uses: homoluctus/gitrivy@v1.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: sample
