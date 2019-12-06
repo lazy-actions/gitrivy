@@ -3,6 +3,7 @@ import { unlinkSync, writeFileSync } from 'fs';
 import { Vulnerability, TrivyOption } from '../src/interface';
 
 const downloader = new Downloader();
+const trivy = new Trivy();
 
 function removeTrivyCmd(path: string) {
   path = path.replace(/\/trivy$/, '');
@@ -54,7 +55,7 @@ describe('getDownloadUrl', () => {
     await expect(
       downloader['getDownloadUrl'](version, os)
     ).rejects.toThrowError(
-      'The Trivy version that you specified does not exist.'
+      'Cloud not be found a Trivy asset that you specified.'
     );
   });
 
@@ -64,7 +65,7 @@ describe('getDownloadUrl', () => {
     await expect(
       downloader['getDownloadUrl'](version, os)
     ).rejects.toThrowError(
-      'Cloud not be found Trivy asset that You specified.'
+      'Cloud not be found a Trivy asset that you specified.'
     );
   });
 });
@@ -109,7 +110,7 @@ describe('Trivy command', () => {
   });
 });
 
-describe('Scan', () => {
+describe('Trivy scan', () => {
   let trivyPath: string;
   const image: string = 'alpine:3.10';
 
@@ -123,49 +124,49 @@ describe('Scan', () => {
     removeTrivyCmd(trivyPath);
   });
 
-  test('with valid options', () => {
-    const options: TrivyOption = {
+  test('with valid option', () => {
+    const option: TrivyOption = {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: true,
       format: 'json',
     };
-    const result: Vulnerability[] | string = Trivy.scan(
+    const result: Vulnerability[] | string = trivy.scan(
       trivyPath,
       image,
-      options
+      option
     );
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result).toBeInstanceOf(Object);
   });
 
   test('without ignoreUnfixed', () => {
-    const options: TrivyOption = {
+    const option: TrivyOption = {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: false,
       format: 'json',
     };
-    const result: Vulnerability[] | string = Trivy.scan(
+    const result: Vulnerability[] | string = trivy.scan(
       trivyPath,
       image,
-      options
+      option
     );
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result).toBeInstanceOf(Object);
   });
 
   test('with table format', () => {
-    const options: TrivyOption = {
+    const option: TrivyOption = {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: false,
       format: 'table',
     };
-    const result: Vulnerability[] | string = Trivy.scan(
+    const result: Vulnerability[] | string = trivy.scan(
       trivyPath,
       image,
-      options
+      option
     );
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result).toMatch(/alpine:3\.10/);
@@ -179,8 +180,8 @@ describe('Scan', () => {
       format: 'json',
     };
     expect(() => {
-      Trivy.scan(trivyPath, image, invalidOption);
-    }).toThrowError('severity option error: INVALID is unknown severity');
+      trivy.scan(trivyPath, image, invalidOption);
+    }).toThrowError('Trivy option error: INVALID is unknown severity');
   });
 
   test('with invalid vulnType', () => {
@@ -191,8 +192,8 @@ describe('Scan', () => {
       format: 'json',
     };
     expect(() => {
-      Trivy.scan(trivyPath, image, invalidOption);
-    }).toThrowError('vuln-type option error: INVALID is unknown vuln-type');
+      trivy.scan(trivyPath, image, invalidOption);
+    }).toThrowError('Trivy option error: INVALID is unknown vuln-type');
   });
 });
 
@@ -204,7 +205,7 @@ describe('Parse', () => {
         Vulnerabilities: null,
       },
     ];
-    const result = Trivy.parse(vulnerabilities);
+    const result = trivy.parse(vulnerabilities);
     expect(result).toBe('');
   });
 
@@ -247,9 +248,77 @@ describe('Parse', () => {
         ],
       },
     ];
-    const result = Trivy.parse(vulnerabilities);
+    const result = trivy.parse(vulnerabilities);
     expect(result).toMatch(
       /\|Title\|Severity\|CVE\|Package Name\|Installed Version\|Fixed Version\|References\|/
     );
+  });
+});
+
+describe('Validate trivy option', () => {
+  test('with a valid severity', () => {
+    const options: string[] = ['HIGH'];
+    const result = trivy['validateSeverity'](options);
+    expect(result).toBeTruthy();
+  });
+
+  test('with two valid severities', () => {
+    const options: string[] = ['HIGH', 'CRITICAL'];
+    const result = trivy['validateSeverity'](options);
+    expect(result).toBeTruthy();
+  });
+
+  test('with an invalid severity', () => {
+    const options: string[] = ['INVALID'];
+    expect(() => {
+      trivy['validateSeverity'](options);
+    }).toThrowError('Trivy option error: INVALID is unknown severity');
+  });
+
+  test('with two invalid severities', () => {
+    const options: string[] = ['INVALID', 'ERROR'];
+    expect(() => {
+      trivy['validateSeverity'](options);
+    }).toThrowError('Trivy option error: INVALID,ERROR is unknown severity');
+  });
+
+  test('with an invalid and a valid severities', () => {
+    const options: string[] = ['INVALID', 'HIGH'];
+    expect(() => {
+      trivy['validateSeverity'](options);
+    }).toThrowError('Trivy option error: INVALID,HIGH is unknown severity');
+  });
+
+  test('with a valid vuln-type', () => {
+    const options: string[] = ['os'];
+    const result = trivy['validateVulnType'](options);
+    expect(result).toBeTruthy();
+  });
+
+  test('with two valid vuln-types', () => {
+    const options: string[] = ['os', 'library'];
+    const result = trivy['validateVulnType'](options);
+    expect(result).toBeTruthy();
+  });
+
+  test('with an invalid vuln-type', () => {
+    const options: string[] = ['INVALID'];
+    expect(() => {
+      trivy['validateVulnType'](options);
+    }).toThrowError('Trivy option error: INVALID is unknown vuln-type');
+  });
+
+  test('with two invalid vuln-types', () => {
+    const options: string[] = ['INVALID', 'ERROR'];
+    expect(() => {
+      trivy['validateVulnType'](options);
+    }).toThrowError('Trivy option error: INVALID,ERROR is unknown vuln-type');
+  });
+
+  test('with a valid and an invalid vuln-types', () => {
+    const options: string[] = ['INVALID', 'os'];
+    expect(() => {
+      trivy['validateVulnType'](options);
+    }).toThrowError('Trivy option error: INVALID,os is unknown vuln-type');
   });
 });

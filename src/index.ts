@@ -30,7 +30,9 @@ async function run() {
 
     const downloader = new Downloader();
     const trivyCmdPath: string = await downloader.download(trivyVersion);
-    const result: Vulnerability[] | string = Trivy.scan(
+
+    const trivy = new Trivy();
+    const result: Vulnerability[] | string = trivy.scan(
       trivyCmdPath,
       image,
       trivyOption
@@ -45,7 +47,7 @@ async function run() {
       return;
     }
 
-    const issueContent: string = Trivy.parse(result as Vulnerability[]);
+    const issueContent: string = trivy.parse(result as Vulnerability[]);
 
     if (issueContent === '') {
       core.info(

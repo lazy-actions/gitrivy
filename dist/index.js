@@ -6588,14 +6588,15 @@ function run() {
             };
             const downloader = new trivy_1.Downloader();
             const trivyCmdPath = yield downloader.download(trivyVersion);
-            const result = trivy_1.Trivy.scan(trivyCmdPath, image, trivyOption);
+            const trivy = new trivy_1.Trivy();
+            const result = trivy.scan(trivyCmdPath, image, trivyOption);
             if (!issueFlag) {
                 core.info(`Not create a issue because issue parameter is false.
         Vulnerabilities:
         ${result}`);
                 return;
             }
-            const issueContent = trivy_1.Trivy.parse(result);
+            const issueContent = trivy.parse(result);
             if (issueContent === '') {
                 core.info('Vulnerabilities were not found.\nYour maintenance looks good 👍');
                 return;
@@ -13198,13 +13199,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __asyncValues = (this && this.__asyncValues) || function (o) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var m = o[Symbol.asyncIterator], i;
-    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -13243,53 +13237,49 @@ class Downloader {
         }
     }
     getDownloadUrl(version, os) {
-        var e_1, _a;
         return __awaiter(this, void 0, void 0, function* () {
-            let response;
             try {
-                if (version === 'latest') {
-                    response = yield this.githubClient.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
-                    version = response.data.tag_name.replace(/v/, '');
-                }
-                else {
-                    response = yield this.githubClient.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
-                }
-            }
-            catch (error) {
-                throw new Error(`The Trivy version that you specified does not exist.
-      Version: ${version}
-      `);
-            }
-            const filename = `trivy_${version}_${os}-64bit.tar.gz`;
-            try {
-                for (var _b = __asyncValues(response.data.assets), _c; _c = yield _b.next(), !_c.done;) {
-                    const asset = _c.value;
+                const response = yield this.getAssets(version);
+                const filename = `trivy_${response.version}_${os}-64bit.tar.gz`;
+                for (const asset of response.assets) {
                     if (asset.name === filename) {
                         return asset.browser_download_url;
                     }
                 }
+                throw new Error();
             }
-            catch (e_1_1) { e_1 = { error: e_1_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) yield _a.call(_b);
-                }
-                finally { if (e_1) throw e_1.error; }
+            catch (error) {
+                const errorMsg = `
+      Cloud not be found a Trivy asset that you specified.
+      Version: ${version}
+      OS: ${os}
+      `;
+                throw new Error(errorMsg);
             }
-            const errorMsg = `Cloud not be found Trivy asset that You specified.
-    Version: ${version}
-    OS: ${os}`;
-            throw new Error(errorMsg);
+        });
+    }
+    getAssets(version) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let response;
+            if (version === 'latest') {
+                response = yield this.githubClient.repos.getLatestRelease(Object.assign({}, Downloader.trivyRepository));
+                version = response.data.tag_name.replace(/v/, '');
+            }
+            else {
+                response = yield this.githubClient.repos.getReleaseByTag(Object.assign(Object.assign({}, Downloader.trivyRepository), { tag: `v${version}` }));
+            }
+            return { assets: response.data.assets, version };
         });
     }
     downloadTrivyCmd(downloadUrl, savedPath = '.') {
         return __awaiter(this, void 0, void 0, function* () {
             const response = yield node_fetch_1.default(downloadUrl);
             return new Promise((resolve, reject) => {
+                const gunzip = zlib_1.default.createGunzip();
                 const extract = tar_1.default.extract({ C: savedPath }, ['trivy']);
                 response.body
                     .on('error', reject)
-                    .pipe(zlib_1.default.createGunzip())
+                    .pipe(gunzip)
                     .on('error', reject)
                     .pipe(extract)
                     .on('error', reject)
@@ -13315,8 +13305,8 @@ Downloader.trivyRepository = {
     repo: 'trivy',
 };
 class Trivy {
-    static scan(trivyPath, image, option) {
-        Trivy.validateOption(option);
+    scan(trivyPath, image, option) {
+        this.validateOption(option);
         const args = [
             '--severity',
             option.severity,
@@ -13345,7 +13335,7 @@ class Trivy {
       erorr: ${result.error}
     `);
     }
-    static parse(vulnerabilities) {
+    parse(vulnerabilities) {
         let issueContent = '';
         for (const vuln of vulnerabilities) {
             if (vuln.Vulnerabilities === null)
@@ -13368,23 +13358,36 @@ class Trivy {
         }
         return issueContent;
     }
-    static validateOption(option) {
+    validateOption(option) {
+        this.validateSeverity(option.severity.split(','));
+        this.validateVulnType(option.vulnType.split(','));
+    }
+    validateSeverity(severities) {
         const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-        const allowedVulnTypes = /os|library/;
-        for (const severity of option.severity.split(',')) {
-            if (!allowedSeverities.test(severity)) {
-                throw new Error(`severity option error: ${severity} is unknown severity`);
-            }
+        if (!validateArrayOption(allowedSeverities, severities)) {
+            throw new Error(`Trivy option error: ${severities.join(',')} is unknown severity.
+        Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`);
         }
-        for (const vulnType of option.vulnType.split(',')) {
-            if (!allowedVulnTypes.test(vulnType)) {
-                throw new Error(`vuln-type option error: ${vulnType} is unknown vuln-type`);
-            }
+        return true;
+    }
+    validateVulnType(vulnTypes) {
+        const allowedVulnTypes = /os|library/;
+        if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
+            throw new Error(`Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
+        Trivy supports os and library.`);
         }
         return true;
     }
 }
 exports.Trivy = Trivy;
+function validateArrayOption(allowedValue, options) {
+    for (const option of options) {
+        if (!allowedValue.test(option)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 
 /***/ }),

@@ -1,21 +1,19 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import tar from 'tar';
-import Octokit, { ReposGetLatestReleaseResponse } from '@octokit/rest';
+import Octokit, {
+  ReposGetLatestReleaseResponse,
+  ReposGetLatestReleaseResponseAssetsItem,
+} from '@octokit/rest';
 import fetch, { Response } from 'node-fetch';
 import { spawnSync, SpawnSyncReturns } from 'child_process';
 
 import { TrivyOption, Vulnerability } from './interface';
 
-interface Repository {
-  owner: string;
-  repo: string;
-}
-
 export class Downloader {
   githubClient: Octokit;
 
-  static readonly trivyRepository: Repository = {
+  static readonly trivyRepository = {
     owner: 'aquasecurity',
     repo: 'trivy',
   };
@@ -54,37 +52,45 @@ export class Downloader {
   }
 
   private async getDownloadUrl(version: string, os: string): Promise<string> {
+    try {
+      const response = await this.getAssets(version);
+      const filename: string = `trivy_${response.version}_${os}-64bit.tar.gz`;
+      for (const asset of response.assets) {
+        if (asset.name === filename) {
+          return asset.browser_download_url;
+        }
+      }
+      throw new Error();
+    } catch (error) {
+      const errorMsg: string = `
+      Cloud not be found a Trivy asset that you specified.
+      Version: ${version}
+      OS: ${os}
+      `;
+      throw new Error(errorMsg);
+    }
+  }
+
+  private async getAssets(
+    version: string
+  ): Promise<{
+    assets: ReposGetLatestReleaseResponseAssetsItem[];
+    version: string;
+  }> {
     let response: Octokit.Response<ReposGetLatestReleaseResponse>;
 
-    try {
-      if (version === 'latest') {
-        response = await this.githubClient.repos.getLatestRelease({
-          ...Downloader.trivyRepository,
-        });
-        version = response.data.tag_name.replace(/v/, '');
-      } else {
-        response = await this.githubClient.repos.getReleaseByTag({
-          ...Downloader.trivyRepository,
-          tag: `v${version}`,
-        });
-      }
-    } catch (error) {
-      throw new Error(`The Trivy version that you specified does not exist.
-      Version: ${version}
-      `);
+    if (version === 'latest') {
+      response = await this.githubClient.repos.getLatestRelease({
+        ...Downloader.trivyRepository,
+      });
+      version = response.data.tag_name.replace(/v/, '');
+    } else {
+      response = await this.githubClient.repos.getReleaseByTag({
+        ...Downloader.trivyRepository,
+        tag: `v${version}`,
+      });
     }
-
-    const filename: string = `trivy_${version}_${os}-64bit.tar.gz`;
-    for await (const asset of response.data.assets) {
-      if (asset.name === filename) {
-        return asset.browser_download_url;
-      }
-    }
-
-    const errorMsg: string = `Cloud not be found Trivy asset that You specified.
-    Version: ${version}
-    OS: ${os}`;
-    throw new Error(errorMsg);
+    return { assets: response.data.assets, version };
   }
 
   private async downloadTrivyCmd(
@@ -94,10 +100,11 @@ export class Downloader {
     const response: Response = await fetch(downloadUrl);
 
     return new Promise((resolve, reject) => {
+      const gunzip = zlib.createGunzip();
       const extract = tar.extract({ C: savedPath }, ['trivy']);
       response.body
         .on('error', reject)
-        .pipe(zlib.createGunzip())
+        .pipe(gunzip)
         .on('error', reject)
         .pipe(extract)
         .on('error', reject)
@@ -119,12 +126,12 @@ export class Downloader {
 }
 
 export class Trivy {
-  static scan(
+  public scan(
     trivyPath: string,
     image: string,
     option: TrivyOption
   ): Vulnerability[] | string {
-    Trivy.validateOption(option);
+    this.validateOption(option);
 
     const args: string[] = [
       '--severity',
@@ -159,7 +166,7 @@ export class Trivy {
     `);
   }
 
-  static parse(vulnerabilities: Vulnerability[]): string {
+  public parse(vulnerabilities: Vulnerability[]): string {
     let issueContent: string = '';
 
     for (const vuln of vulnerabilities) {
@@ -187,26 +194,39 @@ export class Trivy {
     return issueContent;
   }
 
-  static validateOption(option: TrivyOption): boolean {
+  private validateOption(option: TrivyOption): void {
+    this.validateSeverity(option.severity.split(','));
+    this.validateVulnType(option.vulnType.split(','));
+  }
+
+  private validateSeverity(severities: string[]): boolean {
     const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-    const allowedVulnTypes = /os|library/;
-
-    for (const severity of option.severity.split(',')) {
-      if (!allowedSeverities.test(severity)) {
-        throw new Error(
-          `severity option error: ${severity} is unknown severity`
-        );
-      }
+    if (!validateArrayOption(allowedSeverities, severities)) {
+      throw new Error(
+        `Trivy option error: ${severities.join(',')} is unknown severity.
+        Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`
+      );
     }
-
-    for (const vulnType of option.vulnType.split(',')) {
-      if (!allowedVulnTypes.test(vulnType)) {
-        throw new Error(
-          `vuln-type option error: ${vulnType} is unknown vuln-type`
-        );
-      }
-    }
-
     return true;
   }
+
+  private validateVulnType(vulnTypes: string[]): boolean {
+    const allowedVulnTypes = /os|library/;
+    if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
+      throw new Error(
+        `Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
+        Trivy supports os and library.`
+      );
+    }
+    return true;
+  }
+}
+
+function validateArrayOption(allowedValue: RegExp, options: string[]): boolean {
+  for (const option of options) {
+    if (!allowedValue.test(option)) {
+      return false;
+    }
+  }
+  return true;
 }
