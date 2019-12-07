@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import * as github from '@actions/github';
 import { Trivy, Downloader } from './trivy';
 import { createIssue } from './issue';
 import {
@@ -68,6 +69,10 @@ async function run() {
         .replace(/\s+/g, '')
         .split(','),
     };
+    const showCommitHash: string = core.getInput('show_commit_hash');
+    if (showCommitHash === 'true') {
+      issueOption.body += `${github.context.sha}\n\n`;
+    }
     const token: string = core.getInput('token', { required: true });
     const output: IssueResponse = await createIssue(token, issueOption);
     core.setOutput('html_url', output.htmlUrl);

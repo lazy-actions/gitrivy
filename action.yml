@@ -39,6 +39,9 @@ inputs:
   issue_assignee:
     description: 'Issue assignee (separeted by commma)'
     required: false
+  show_commit_hash:
+    description: 'Show commit hash'
+    required: false
 
 outputs:
   issue_number:
