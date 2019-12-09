@@ -10,11 +10,11 @@ inputs:
     description: 'The target image name of vulnerability scan (specify this parameter or "IMAGE_NAME" environment variable'
     required: false
   severity:
-    description: 'sevirities of vulunerabilities (separeted by commma)'
+    description: 'sevirities of vulunerabilities (separated by commma)'
     default: 'HIGH,CRITICAL'
     required: false
   vuln_type:
-    description: 'target vlunerability [os,library] (separeted by commma)'
+    description: 'target vlunerability [os,library] (separated by commma)'
     default: 'os,library'
     required: false
   ignore_unfixed:
@@ -33,11 +33,11 @@ inputs:
     default: 'Security Alert'
     required: false
   issue_label:
-    description: 'Issue label (separeted by commma)'
+    description: 'Issue label (separated by commma)'
     default: 'trivy,vulnerability'
     required: false
   issue_assignee:
-    description: 'Issue assignee (separeted by commma)'
+    description: 'Issue assignee (separated by commma)'
     required: false
 
 outputs:
