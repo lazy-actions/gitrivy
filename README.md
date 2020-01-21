@@ -16,7 +16,7 @@ If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 |:--:|:--:|:--:|:--|
 |trivy_version|False|latest|Trivy version|
 |image|True|N/A|The target image name to scan the vulnerability<br>Specify this parameter or `IMAGE_NAME` environment variable|
-|severity|False|HIGH,CRITICAL|Sevirities of vulunerabilities (separated by commma)|
+|severity|False|HIGH,CRITICAL|Severities of vulnerabilities (separated by commma)|
 |vuln_type|False|os,library|Scan target are os and / or library (separated by commma)|
 |ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Please specify `true` or `false`|
 |issue|False|true|Decide whether creating issue when vulnerabilities are found by trivy.<br>Please specify `true` or `false`|
