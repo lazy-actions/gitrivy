@@ -1,10 +1,7 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import tar from 'tar';
-import Octokit, {
-  ReposGetLatestReleaseResponse,
-  ReposGetLatestReleaseResponseAssetsItem,
-} from '@octokit/rest';
+import { Octokit } from '@octokit/rest';
 import fetch, { Response } from 'node-fetch';
 import { spawnSync, SpawnSyncReturns } from 'child_process';
 
@@ -74,10 +71,10 @@ export class Downloader {
   private async getAssets(
     version: string
   ): Promise<{
-    assets: ReposGetLatestReleaseResponseAssetsItem[];
+    assets: Octokit.ReposGetLatestReleaseResponseAssetsItem[];
     version: string;
   }> {
-    let response: Octokit.Response<ReposGetLatestReleaseResponse>;
+    let response: Octokit.Response<Octokit.ReposGetLatestReleaseResponse>;
 
     if (version === 'latest') {
       response = await this.githubClient.repos.getLatestRelease({
