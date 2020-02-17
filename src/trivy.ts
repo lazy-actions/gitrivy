@@ -6,6 +6,7 @@ import fetch, { Response } from 'node-fetch';
 import { spawnSync, SpawnSyncReturns } from 'child_process';
 
 import { TrivyOption, Vulnerability } from './interface';
+import { isIterable } from './utils';
 
 export class Downloader {
   githubClient: Octokit;
@@ -180,7 +181,9 @@ export class Trivy {
         vulnTable += `|${cve.InstalledVersion || 'N/A'}|${cve.FixedVersion ||
           'N/A'}|`;
 
-        for (const reference of cve.References) {
+        const references = cve.References;
+        if (!isIterable(references)) continue;
+        for (const reference of references) {
           vulnTable += `${reference || 'N/A'}<br>`;
         }
 
