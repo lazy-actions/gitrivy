@@ -160,7 +160,7 @@ export class Trivy {
     throw new Error(`Failed vulnerability scan using Trivy.
       stdout: ${result.stdout}
       stderr: ${result.stderr}
-      erorr: ${result.error}
+      error: ${result.error}
     `);
   }
 
