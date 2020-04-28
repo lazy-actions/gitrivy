@@ -6593,6 +6593,9 @@ function run() {
             const output = yield issue_1.createOrUpdateIssue(token, image, issueOption);
             core.setOutput('html_url', output.htmlUrl);
             core.setOutput('issue_number', output.issueNumber.toString());
+            if (core.getInput("fail_on_vulnerabilities") === 'true') {
+                core.setFailed(`Vulnerabilities found.\n${issueContent}`);
+            }
         }
         catch (error) {
             core.error(error.stack);
