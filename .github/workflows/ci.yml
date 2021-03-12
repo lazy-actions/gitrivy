@@ -1,13 +1,8 @@
 name: CI
 
-on:
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'dist/**'
-      - tsconfig.json
-      - package.json
-      - yarn.lock
+on: 
+  workflow_dispatch:
+  push:
 
 env:
   IMAGE_NAME: alpine:3.10.1
