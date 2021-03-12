@@ -24,6 +24,7 @@ If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 |issue_title|False|Security Alert|Issue title|
 |issue_label|False|trivy,vulnerability|Issue label (separated by commma)|
 |issue_assignee|False|N/A|Issue assignee (separated by commma)|
+|fail_on_vulnerabilities|False|false|Whether the action should fail if any vulnerabilities were found.|
 
 ### Outputs
 

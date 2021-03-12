@@ -1310,552 +1310,6 @@ module.exports = require("os");
 
 /***/ }),
 
-/***/ 106:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-const EE = __webpack_require__(614)
-const Stream = __webpack_require__(413)
-const Yallist = __webpack_require__(612)
-const SD = __webpack_require__(304).StringDecoder
-
-const EOF = Symbol('EOF')
-const MAYBE_EMIT_END = Symbol('maybeEmitEnd')
-const EMITTED_END = Symbol('emittedEnd')
-const EMITTING_END = Symbol('emittingEnd')
-const CLOSED = Symbol('closed')
-const READ = Symbol('read')
-const FLUSH = Symbol('flush')
-const FLUSHCHUNK = Symbol('flushChunk')
-const ENCODING = Symbol('encoding')
-const DECODER = Symbol('decoder')
-const FLOWING = Symbol('flowing')
-const PAUSED = Symbol('paused')
-const RESUME = Symbol('resume')
-const BUFFERLENGTH = Symbol('bufferLength')
-const BUFFERPUSH = Symbol('bufferPush')
-const BUFFERSHIFT = Symbol('bufferShift')
-const OBJECTMODE = Symbol('objectMode')
-const DESTROYED = Symbol('destroyed')
-
-// TODO remove when Node v8 support drops
-const doIter = global._MP_NO_ITERATOR_SYMBOLS_  !== '1'
-const ASYNCITERATOR = doIter && Symbol.asyncIterator
-  || Symbol('asyncIterator not implemented')
-const ITERATOR = doIter && Symbol.iterator
-  || Symbol('iterator not implemented')
-
-// events that mean 'the stream is over'
-// these are treated specially, and re-emitted
-// if they are listened for after emitting.
-const isEndish = ev =>
-  ev === 'end' ||
-  ev === 'finish' ||
-  ev === 'prefinish'
-
-const isArrayBuffer = b => b instanceof ArrayBuffer ||
-  typeof b === 'object' &&
-  b.constructor &&
-  b.constructor.name === 'ArrayBuffer' &&
-  b.byteLength >= 0
-
-const isArrayBufferView = b => !Buffer.isBuffer(b) && ArrayBuffer.isView(b)
-
-module.exports = class Minipass extends Stream {
-  constructor (options) {
-    super()
-    this[FLOWING] = false
-    // whether we're explicitly paused
-    this[PAUSED] = false
-    this.pipes = new Yallist()
-    this.buffer = new Yallist()
-    this[OBJECTMODE] = options && options.objectMode || false
-    if (this[OBJECTMODE])
-      this[ENCODING] = null
-    else
-      this[ENCODING] = options && options.encoding || null
-    if (this[ENCODING] === 'buffer')
-      this[ENCODING] = null
-    this[DECODER] = this[ENCODING] ? new SD(this[ENCODING]) : null
-    this[EOF] = false
-    this[EMITTED_END] = false
-    this[EMITTING_END] = false
-    this[CLOSED] = false
-    this.writable = true
-    this.readable = true
-    this[BUFFERLENGTH] = 0
-    this[DESTROYED] = false
-  }
-
-  get bufferLength () { return this[BUFFERLENGTH] }
-
-  get encoding () { return this[ENCODING] }
-  set encoding (enc) {
-    if (this[OBJECTMODE])
-      throw new Error('cannot set encoding in objectMode')
-
-    if (this[ENCODING] && enc !== this[ENCODING] &&
-        (this[DECODER] && this[DECODER].lastNeed || this[BUFFERLENGTH]))
-      throw new Error('cannot change encoding')
-
-    if (this[ENCODING] !== enc) {
-      this[DECODER] = enc ? new SD(enc) : null
-      if (this.buffer.length)
-        this.buffer = this.buffer.map(chunk => this[DECODER].write(chunk))
-    }
-
-    this[ENCODING] = enc
-  }
-
-  setEncoding (enc) {
-    this.encoding = enc
-  }
-
-  get objectMode () { return this[OBJECTMODE] }
-  set objectMode (ॐ ) { this[OBJECTMODE] = this[OBJECTMODE] || !!ॐ  }
-
-  write (chunk, encoding, cb) {
-    if (this[EOF])
-      throw new Error('write after end')
-
-    if (this[DESTROYED]) {
-      this.emit('error', Object.assign(
-        new Error('Cannot call write after a stream was destroyed'),
-        { code: 'ERR_STREAM_DESTROYED' }
-      ))
-      return true
-    }
-
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-
-    if (!encoding)
-      encoding = 'utf8'
-
-    // convert array buffers and typed array views into buffers
-    // at some point in the future, we may want to do the opposite!
-    // leave strings and buffers as-is
-    // anything else switches us into object mode
-    if (!this[OBJECTMODE] && !Buffer.isBuffer(chunk)) {
-      if (isArrayBufferView(chunk))
-        chunk = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-      else if (isArrayBuffer(chunk))
-        chunk = Buffer.from(chunk)
-      else if (typeof chunk !== 'string')
-        // use the setter so we throw if we have encoding set
-        this.objectMode = true
-    }
-
-    // this ensures at this point that the chunk is a buffer or string
-    // don't buffer it up or send it to the decoder
-    if (!this.objectMode && !chunk.length) {
-      const ret = this.flowing
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-      if (cb)
-        cb()
-      return ret
-    }
-
-    // fast-path writing strings of same encoding to a stream with
-    // an empty buffer, skipping the buffer/decoder dance
-    if (typeof chunk === 'string' && !this[OBJECTMODE] &&
-        // unless it is a string already ready for us to use
-        !(encoding === this[ENCODING] && !this[DECODER].lastNeed)) {
-      chunk = Buffer.from(chunk, encoding)
-    }
-
-    if (Buffer.isBuffer(chunk) && this[ENCODING])
-      chunk = this[DECODER].write(chunk)
-
-    try {
-      return this.flowing
-        ? (this.emit('data', chunk), this.flowing)
-        : (this[BUFFERPUSH](chunk), false)
-    } finally {
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-      if (cb)
-        cb()
-    }
-  }
-
-  read (n) {
-    if (this[DESTROYED])
-      return null
-
-    try {
-      if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH])
-        return null
-
-      if (this[OBJECTMODE])
-        n = null
-
-      if (this.buffer.length > 1 && !this[OBJECTMODE]) {
-        if (this.encoding)
-          this.buffer = new Yallist([
-            Array.from(this.buffer).join('')
-          ])
-        else
-          this.buffer = new Yallist([
-            Buffer.concat(Array.from(this.buffer), this[BUFFERLENGTH])
-          ])
-      }
-
-      return this[READ](n || null, this.buffer.head.value)
-    } finally {
-      this[MAYBE_EMIT_END]()
-    }
-  }
-
-  [READ] (n, chunk) {
-    if (n === chunk.length || n === null)
-      this[BUFFERSHIFT]()
-    else {
-      this.buffer.head.value = chunk.slice(n)
-      chunk = chunk.slice(0, n)
-      this[BUFFERLENGTH] -= n
-    }
-
-    this.emit('data', chunk)
-
-    if (!this.buffer.length && !this[EOF])
-      this.emit('drain')
-
-    return chunk
-  }
-
-  end (chunk, encoding, cb) {
-    if (typeof chunk === 'function')
-      cb = chunk, chunk = null
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-    if (chunk)
-      this.write(chunk, encoding)
-    if (cb)
-      this.once('end', cb)
-    this[EOF] = true
-    this.writable = false
-
-    // if we haven't written anything, then go ahead and emit,
-    // even if we're not reading.
-    // we'll re-emit if a new 'end' listener is added anyway.
-    // This makes MP more suitable to write-only use cases.
-    if (this.flowing || !this[PAUSED])
-      this[MAYBE_EMIT_END]()
-    return this
-  }
-
-  // don't let the internal resume be overwritten
-  [RESUME] () {
-    if (this[DESTROYED])
-      return
-
-    this[PAUSED] = false
-    this[FLOWING] = true
-    this.emit('resume')
-    if (this.buffer.length)
-      this[FLUSH]()
-    else if (this[EOF])
-      this[MAYBE_EMIT_END]()
-    else
-      this.emit('drain')
-  }
-
-  resume () {
-    return this[RESUME]()
-  }
-
-  pause () {
-    this[FLOWING] = false
-    this[PAUSED] = true
-  }
-
-  get destroyed () {
-    return this[DESTROYED]
-  }
-
-  get flowing () {
-    return this[FLOWING]
-  }
-
-  get paused () {
-    return this[PAUSED]
-  }
-
-  [BUFFERPUSH] (chunk) {
-    if (this[OBJECTMODE])
-      this[BUFFERLENGTH] += 1
-    else
-      this[BUFFERLENGTH] += chunk.length
-    return this.buffer.push(chunk)
-  }
-
-  [BUFFERSHIFT] () {
-    if (this.buffer.length) {
-      if (this[OBJECTMODE])
-        this[BUFFERLENGTH] -= 1
-      else
-        this[BUFFERLENGTH] -= this.buffer.head.value.length
-    }
-    return this.buffer.shift()
-  }
-
-  [FLUSH] () {
-    do {} while (this[FLUSHCHUNK](this[BUFFERSHIFT]()))
-
-    if (!this.buffer.length && !this[EOF])
-      this.emit('drain')
-  }
-
-  [FLUSHCHUNK] (chunk) {
-    return chunk ? (this.emit('data', chunk), this.flowing) : false
-  }
-
-  pipe (dest, opts) {
-    if (this[DESTROYED])
-      return
-
-    const ended = this[EMITTED_END]
-    opts = opts || {}
-    if (dest === process.stdout || dest === process.stderr)
-      opts.end = false
-    else
-      opts.end = opts.end !== false
-
-    const p = { dest: dest, opts: opts, ondrain: _ => this[RESUME]() }
-    this.pipes.push(p)
-
-    dest.on('drain', p.ondrain)
-    this[RESUME]()
-    // piping an ended stream ends immediately
-    if (ended && p.opts.end)
-      p.dest.end()
-    return dest
-  }
-
-  addListener (ev, fn) {
-    return this.on(ev, fn)
-  }
-
-  on (ev, fn) {
-    try {
-      return super.on(ev, fn)
-    } finally {
-      if (ev === 'data' && !this.pipes.length && !this.flowing)
-        this[RESUME]()
-      else if (isEndish(ev) && this[EMITTED_END]) {
-        super.emit(ev)
-        this.removeAllListeners(ev)
-      }
-    }
-  }
-
-  get emittedEnd () {
-    return this[EMITTED_END]
-  }
-
-  [MAYBE_EMIT_END] () {
-    if (!this[EMITTING_END] &&
-        !this[EMITTED_END] &&
-        !this[DESTROYED] &&
-        this.buffer.length === 0 &&
-        this[EOF]) {
-      this[EMITTING_END] = true
-      this.emit('end')
-      this.emit('prefinish')
-      this.emit('finish')
-      if (this[CLOSED])
-        this.emit('close')
-      this[EMITTING_END] = false
-    }
-  }
-
-  emit (ev, data) {
-    // error and close are only events allowed after calling destroy()
-    if (ev !== 'error' && ev !== 'close' && ev !== DESTROYED && this[DESTROYED])
-      return
-    else if (ev === 'data') {
-      if (!data)
-        return
-
-      if (this.pipes.length)
-        this.pipes.forEach(p =>
-          p.dest.write(data) === false && this.pause())
-    } else if (ev === 'end') {
-      // only actual end gets this treatment
-      if (this[EMITTED_END] === true)
-        return
-
-      this[EMITTED_END] = true
-      this.readable = false
-
-      if (this[DECODER]) {
-        data = this[DECODER].end()
-        if (data) {
-          this.pipes.forEach(p => p.dest.write(data))
-          super.emit('data', data)
-        }
-      }
-
-      this.pipes.forEach(p => {
-        p.dest.removeListener('drain', p.ondrain)
-        if (p.opts.end)
-          p.dest.end()
-      })
-    } else if (ev === 'close') {
-      this[CLOSED] = true
-      // don't emit close before 'end' and 'finish'
-      if (!this[EMITTED_END] && !this[DESTROYED])
-        return
-    }
-
-    // TODO: replace with a spread operator when Node v4 support drops
-    const args = new Array(arguments.length)
-    args[0] = ev
-    args[1] = data
-    if (arguments.length > 2) {
-      for (let i = 2; i < arguments.length; i++) {
-        args[i] = arguments[i]
-      }
-    }
-
-    try {
-      return super.emit.apply(this, args)
-    } finally {
-      if (!isEndish(ev))
-        this[MAYBE_EMIT_END]()
-      else
-        this.removeAllListeners(ev)
-    }
-  }
-
-  // const all = await stream.collect()
-  collect () {
-    const buf = []
-    if (!this[OBJECTMODE])
-      buf.dataLength = 0
-    // set the promise first, in case an error is raised
-    // by triggering the flow here.
-    const p = this.promise()
-    this.on('data', c => {
-      buf.push(c)
-      if (!this[OBJECTMODE])
-        buf.dataLength += c.length
-    })
-    return p.then(() => buf)
-  }
-
-  // const data = await stream.concat()
-  concat () {
-    return this[OBJECTMODE]
-      ? Promise.reject(new Error('cannot concat in objectMode'))
-      : this.collect().then(buf =>
-          this[OBJECTMODE]
-            ? Promise.reject(new Error('cannot concat in objectMode'))
-            : this[ENCODING] ? buf.join('') : Buffer.concat(buf, buf.dataLength))
-  }
-
-  // stream.promise().then(() => done, er => emitted error)
-  promise () {
-    return new Promise((resolve, reject) => {
-      this.on(DESTROYED, () => reject(new Error('stream destroyed')))
-      this.on('end', () => resolve())
-      this.on('error', er => reject(er))
-    })
-  }
-
-  // for await (let chunk of stream)
-  [ASYNCITERATOR] () {
-    const next = () => {
-      const res = this.read()
-      if (res !== null)
-        return Promise.resolve({ done: false, value: res })
-
-      if (this[EOF])
-        return Promise.resolve({ done: true })
-
-      let resolve = null
-      let reject = null
-      const onerr = er => {
-        this.removeListener('data', ondata)
-        this.removeListener('end', onend)
-        reject(er)
-      }
-      const ondata = value => {
-        this.removeListener('error', onerr)
-        this.removeListener('end', onend)
-        this.pause()
-        resolve({ value: value, done: !!this[EOF] })
-      }
-      const onend = () => {
-        this.removeListener('error', onerr)
-        this.removeListener('data', ondata)
-        resolve({ done: true })
-      }
-      const ondestroy = () => onerr(new Error('stream destroyed'))
-      return new Promise((res, rej) => {
-        reject = rej
-        resolve = res
-        this.once(DESTROYED, ondestroy)
-        this.once('error', onerr)
-        this.once('end', onend)
-        this.once('data', ondata)
-      })
-    }
-
-    return { next }
-  }
-
-  // for (let chunk of stream)
-  [ITERATOR] () {
-    const next = () => {
-      const value = this.read()
-      const done = value === null
-      return { value, done }
-    }
-    return { next }
-  }
-
-  destroy (er) {
-    if (this[DESTROYED]) {
-      if (er)
-        this.emit('error', er)
-      else
-        this.emit(DESTROYED)
-      return this
-    }
-
-    this[DESTROYED] = true
-
-    // throw away all buffered data, it's never coming out
-    this.buffer = new Yallist()
-    this[BUFFERLENGTH] = 0
-
-    if (typeof this.close === 'function' && !this[CLOSED])
-      this.close()
-
-    if (er)
-      this.emit('error', er)
-    else // if no error to emit, still reject pending promises
-      this.emit(DESTROYED)
-
-    return this
-  }
-
-  static isStream (s) {
-    return !!s && (s instanceof Minipass || s instanceof Stream ||
-      s instanceof EE && (
-        typeof s.pipe === 'function' || // readable
-        (typeof s.write === 'function' && typeof s.end === 'function') // writable
-      ))
-  }
-}
-
-
-/***/ }),
-
 /***/ 118:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2817,7 +2271,7 @@ const Buffer = __webpack_require__(293).Buffer
 const realZlib = __webpack_require__(761)
 
 const constants = exports.constants = __webpack_require__(60)
-const Minipass = __webpack_require__(106)
+const Minipass = __webpack_require__(720)
 
 const OriginalBufferConcat = Buffer.concat
 
@@ -6584,7 +6038,7 @@ exports.paginateRest = paginateRest;
 
 "use strict";
 
-const MiniPass = __webpack_require__(635)
+const MiniPass = __webpack_require__(720)
 const Pax = __webpack_require__(582)
 const Header = __webpack_require__(232)
 const ReadEntry = __webpack_require__(662)
@@ -7136,9 +6590,12 @@ function run() {
                     .split(','),
             };
             const token = core.getInput('token', { required: true });
-            const output = yield issue_1.createIssue(token, issueOption);
+            const output = yield issue_1.createOrUpdateIssue(token, image, issueOption);
             core.setOutput('html_url', output.htmlUrl);
             core.setOutput('issue_number', output.issueNumber.toString());
+            if (core.getInput("fail_on_vulnerabilities") === 'true') {
+                core.setFailed(`Vulnerabilities found.\n${issueContent}`);
+            }
         }
         catch (error) {
             core.error(error.stack);
@@ -10494,19 +9951,52 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const rest_1 = __webpack_require__(0);
+const core = __importStar(__webpack_require__(470));
 const github = __importStar(__webpack_require__(469));
-function createIssue(token, options) {
+function getTrivyIssues(client, image, labels) {
     return __awaiter(this, void 0, void 0, function* () {
-        const client = new rest_1.Octokit({ auth: token });
-        const { data: issue, } = yield client.issues.create(Object.assign(Object.assign({}, github.context.repo), options));
-        const result = {
-            issueNumber: issue.number,
-            htmlUrl: issue.html_url,
-        };
-        return result;
+        if (labels == null) {
+            return [];
+        }
+        let { data: trivyIssues, } = yield client.issues.listForRepo(Object.assign(Object.assign({}, github.context.repo), { state: "open", labels: labels.join(",") }));
+        return trivyIssues.filter(issue => issue.body.includes(image));
     });
 }
-exports.createIssue = createIssue;
+function createIssue(client, options) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: issue, } = yield client.issues.create(Object.assign(Object.assign({}, github.context.repo), options));
+        return issue;
+    });
+}
+function updateIssue(issueNumber, client, options) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield client.issues.update(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueNumber, body: options.body }));
+    });
+}
+function createOrUpdateIssue(token, image, options) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const client = new rest_1.Octokit({ auth: token });
+        const trivyIssues = yield getTrivyIssues(client, image, options.labels);
+        if (trivyIssues.length > 0) {
+            core.info("Found existing issue. Updating existing issue.");
+            const existingIssue = trivyIssues[0];
+            yield updateIssue(existingIssue.number, client, options);
+            return {
+                issueNumber: existingIssue.number,
+                htmlUrl: existingIssue.html_url,
+            };
+        }
+        else {
+            core.info("Create new issue");
+            const newIssue = yield createIssue(client, options);
+            return {
+                issueNumber: newIssue.number,
+                htmlUrl: newIssue.html_url,
+            };
+        }
+    });
+}
+exports.createOrUpdateIssue = createOrUpdateIssue;
 
 
 /***/ }),
@@ -12290,7 +11780,456 @@ const addFilesAsync = (p, files) => {
 
 /***/ }),
 
-/***/ 635:
+/***/ 649:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = getLastPage
+
+const getPage = __webpack_require__(265)
+
+function getLastPage (octokit, link, headers) {
+  return getPage(octokit, link, 'last', headers)
+}
+
+
+/***/ }),
+
+/***/ 650:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = getUserAgentNode
+
+const osName = __webpack_require__(2)
+
+function getUserAgentNode () {
+  try {
+    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`
+  } catch (error) {
+    if (/wmic os get Caption/.test(error.message)) {
+      return 'Windows <version undetectable>'
+    }
+
+    throw error
+  }
+}
+
+
+/***/ }),
+
+/***/ 654:
+/***/ (function(module) {
+
+// This is not the set of all possible signals.
+//
+// It IS, however, the set of all signals that trigger
+// an exit on either Linux or BSD systems.  Linux is a
+// superset of the signal names supported on BSD, and
+// the unknown signals just fail to register, so we can
+// catch that easily enough.
+//
+// Don't bother with SIGKILL.  It's uncatchable, which
+// means that we can't fire any callbacks anyway.
+//
+// If a user does happen to register a handler on a non-
+// fatal signal like SIGWINCH or something, and then
+// exit, it'll end up firing `process.emit('exit')`, so
+// the handler will be fired anyway.
+//
+// SIGBUS, SIGFPE, SIGSEGV and SIGILL, when not raised
+// artificially, inherently leave the process in a
+// state from which it is not safe to try and enter JS
+// listeners.
+module.exports = [
+  'SIGABRT',
+  'SIGALRM',
+  'SIGHUP',
+  'SIGINT',
+  'SIGTERM'
+]
+
+if (process.platform !== 'win32') {
+  module.exports.push(
+    'SIGVTALRM',
+    'SIGXCPU',
+    'SIGXFSZ',
+    'SIGUSR2',
+    'SIGTRAP',
+    'SIGSYS',
+    'SIGQUIT',
+    'SIGIOT'
+    // should detect profiler and enable/disable accordingly.
+    // see #21
+    // 'SIGPROF'
+  )
+}
+
+if (process.platform === 'linux') {
+  module.exports.push(
+    'SIGIO',
+    'SIGPOLL',
+    'SIGPWR',
+    'SIGSTKFLT',
+    'SIGUNUSED'
+  )
+}
+
+
+/***/ }),
+
+/***/ 656:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+// tar -x
+const hlo = __webpack_require__(891)
+const Unpack = __webpack_require__(63)
+const fs = __webpack_require__(747)
+const fsm = __webpack_require__(827)
+const path = __webpack_require__(622)
+
+const x = module.exports = (opt_, files, cb) => {
+  if (typeof opt_ === 'function')
+    cb = opt_, files = null, opt_ = {}
+  else if (Array.isArray(opt_))
+    files = opt_, opt_ = {}
+
+  if (typeof files === 'function')
+    cb = files, files = null
+
+  if (!files)
+    files = []
+  else
+    files = Array.from(files)
+
+  const opt = hlo(opt_)
+
+  if (opt.sync && typeof cb === 'function')
+    throw new TypeError('callback not supported for sync tar functions')
+
+  if (!opt.file && typeof cb === 'function')
+    throw new TypeError('callback only supported with file option')
+
+  if (files.length)
+    filesFilter(opt, files)
+
+  return opt.file && opt.sync ? extractFileSync(opt)
+    : opt.file ? extractFile(opt, cb)
+    : opt.sync ? extractSync(opt)
+    : extract(opt)
+}
+
+// construct a filter that limits the file entries listed
+// include child entries if a dir is included
+const filesFilter = (opt, files) => {
+  const map = new Map(files.map(f => [f.replace(/\/+$/, ''), true]))
+  const filter = opt.filter
+
+  const mapHas = (file, r) => {
+    const root = r || path.parse(file).root || '.'
+    const ret = file === root ? false
+      : map.has(file) ? map.get(file)
+      : mapHas(path.dirname(file), root)
+
+    map.set(file, ret)
+    return ret
+  }
+
+  opt.filter = filter
+    ? (file, entry) => filter(file, entry) && mapHas(file.replace(/\/+$/, ''))
+    : file => mapHas(file.replace(/\/+$/, ''))
+}
+
+const extractFileSync = opt => {
+  const u = new Unpack.Sync(opt)
+
+  const file = opt.file
+  let threw = true
+  let fd
+  const stat = fs.statSync(file)
+  // This trades a zero-byte read() syscall for a stat
+  // However, it will usually result in less memory allocation
+  const readSize = opt.maxReadSize || 16*1024*1024
+  const stream = new fsm.ReadStreamSync(file, {
+    readSize: readSize,
+    size: stat.size
+  })
+  stream.pipe(u)
+}
+
+const extractFile = (opt, cb) => {
+  const u = new Unpack(opt)
+  const readSize = opt.maxReadSize || 16*1024*1024
+
+  const file = opt.file
+  const p = new Promise((resolve, reject) => {
+    u.on('error', reject)
+    u.on('close', resolve)
+
+    // This trades a zero-byte read() syscall for a stat
+    // However, it will usually result in less memory allocation
+    fs.stat(file, (er, stat) => {
+      if (er)
+        reject(er)
+      else {
+        const stream = new fsm.ReadStream(file, {
+          readSize: readSize,
+          size: stat.size
+        })
+        stream.on('error', reject)
+        stream.pipe(u)
+      }
+    })
+  })
+  return cb ? p.then(cb, cb) : p
+}
+
+const extractSync = opt => {
+  return new Unpack.Sync(opt)
+}
+
+const extract = opt => {
+  return new Unpack(opt)
+}
+
+
+/***/ }),
+
+/***/ 662:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+const types = __webpack_require__(554)
+const MiniPass = __webpack_require__(720)
+
+const SLURP = Symbol('slurp')
+module.exports = class ReadEntry extends MiniPass {
+  constructor (header, ex, gex) {
+    super()
+    // read entries always start life paused.  this is to avoid the
+    // situation where Minipass's auto-ending empty streams results
+    // in an entry ending before we're ready for it.
+    this.pause()
+    this.extended = ex
+    this.globalExtended = gex
+    this.header = header
+    this.startBlockSize = 512 * Math.ceil(header.size / 512)
+    this.blockRemain = this.startBlockSize
+    this.remain = header.size
+    this.type = header.type
+    this.meta = false
+    this.ignore = false
+    switch (this.type) {
+      case 'File':
+      case 'OldFile':
+      case 'Link':
+      case 'SymbolicLink':
+      case 'CharacterDevice':
+      case 'BlockDevice':
+      case 'Directory':
+      case 'FIFO':
+      case 'ContiguousFile':
+      case 'GNUDumpDir':
+        break
+
+      case 'NextFileHasLongLinkpath':
+      case 'NextFileHasLongPath':
+      case 'OldGnuLongPath':
+      case 'GlobalExtendedHeader':
+      case 'ExtendedHeader':
+      case 'OldExtendedHeader':
+        this.meta = true
+        break
+
+      // NOTE: gnutar and bsdtar treat unrecognized types as 'File'
+      // it may be worth doing the same, but with a warning.
+      default:
+        this.ignore = true
+    }
+
+    this.path = header.path
+    this.mode = header.mode
+    if (this.mode)
+      this.mode = this.mode & 0o7777
+    this.uid = header.uid
+    this.gid = header.gid
+    this.uname = header.uname
+    this.gname = header.gname
+    this.size = header.size
+    this.mtime = header.mtime
+    this.atime = header.atime
+    this.ctime = header.ctime
+    this.linkpath = header.linkpath
+    this.uname = header.uname
+    this.gname = header.gname
+
+    if (ex) this[SLURP](ex)
+    if (gex) this[SLURP](gex, true)
+  }
+
+  write (data) {
+    const writeLen = data.length
+    if (writeLen > this.blockRemain)
+      throw new Error('writing more to entry than is appropriate')
+
+    const r = this.remain
+    const br = this.blockRemain
+    this.remain = Math.max(0, r - writeLen)
+    this.blockRemain = Math.max(0, br - writeLen)
+    if (this.ignore)
+      return true
+
+    if (r >= writeLen)
+      return super.write(data)
+
+    // r < writeLen
+    return super.write(data.slice(0, r))
+  }
+
+  [SLURP] (ex, global) {
+    for (let k in ex) {
+      // we slurp in everything except for the path attribute in
+      // a global extended header, because that's weird.
+      if (ex[k] !== null && ex[k] !== undefined &&
+          !(global && k === 'path'))
+        this[k] = ex[k]
+    }
+  }
+}
+
+
+/***/ }),
+
+/***/ 669:
+/***/ (function(module) {
+
+module.exports = require("util");
+
+/***/ }),
+
+/***/ 674:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticate;
+
+const { Deprecation } = __webpack_require__(692);
+const once = __webpack_require__(969);
+
+const deprecateAuthenticate = once((log, deprecation) => log.warn(deprecation));
+
+function authenticate(state, options) {
+  deprecateAuthenticate(
+    state.octokit.log,
+    new Deprecation(
+      '[@octokit/rest] octokit.authenticate() is deprecated. Use "auth" constructor option instead.'
+    )
+  );
+
+  if (!options) {
+    state.auth = false;
+    return;
+  }
+
+  switch (options.type) {
+    case "basic":
+      if (!options.username || !options.password) {
+        throw new Error(
+          "Basic authentication requires both a username and password to be set"
+        );
+      }
+      break;
+
+    case "oauth":
+      if (!options.token && !(options.key && options.secret)) {
+        throw new Error(
+          "OAuth2 authentication requires a token or key & secret to be set"
+        );
+      }
+      break;
+
+    case "token":
+    case "app":
+      if (!options.token) {
+        throw new Error("Token authentication requires a token to be set");
+      }
+      break;
+
+    default:
+      throw new Error(
+        "Invalid authentication type, must be 'basic', 'oauth', 'token' or 'app'"
+      );
+  }
+
+  state.auth = options;
+}
+
+
+/***/ }),
+
+/***/ 675:
+/***/ (function(module) {
+
+module.exports = function btoa(str) {
+  return new Buffer(str).toString('base64')
+}
+
+
+/***/ }),
+
+/***/ 692:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+class Deprecation extends Error {
+  constructor(message) {
+    super(message); // Maintains proper stack trace (only available on V8)
+
+    /* istanbul ignore next */
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+
+    this.name = 'Deprecation';
+  }
+
+}
+
+exports.Deprecation = Deprecation;
+
+
+/***/ }),
+
+/***/ 697:
+/***/ (function(module) {
+
+"use strict";
+
+module.exports = (promise, onFinally) => {
+	onFinally = onFinally || (() => {});
+
+	return promise.then(
+		val => new Promise(resolve => {
+			resolve(onFinally());
+		}).then(() => val),
+		err => new Promise(resolve => {
+			resolve(onFinally());
+		}).then(() => {
+			throw err;
+		})
+	);
+};
+
+
+/***/ }),
+
+/***/ 720:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
 "use strict";
@@ -12836,455 +12775,6 @@ module.exports = class Minipass extends Stream {
 
 /***/ }),
 
-/***/ 649:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = getLastPage
-
-const getPage = __webpack_require__(265)
-
-function getLastPage (octokit, link, headers) {
-  return getPage(octokit, link, 'last', headers)
-}
-
-
-/***/ }),
-
-/***/ 650:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = getUserAgentNode
-
-const osName = __webpack_require__(2)
-
-function getUserAgentNode () {
-  try {
-    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`
-  } catch (error) {
-    if (/wmic os get Caption/.test(error.message)) {
-      return 'Windows <version undetectable>'
-    }
-
-    throw error
-  }
-}
-
-
-/***/ }),
-
-/***/ 654:
-/***/ (function(module) {
-
-// This is not the set of all possible signals.
-//
-// It IS, however, the set of all signals that trigger
-// an exit on either Linux or BSD systems.  Linux is a
-// superset of the signal names supported on BSD, and
-// the unknown signals just fail to register, so we can
-// catch that easily enough.
-//
-// Don't bother with SIGKILL.  It's uncatchable, which
-// means that we can't fire any callbacks anyway.
-//
-// If a user does happen to register a handler on a non-
-// fatal signal like SIGWINCH or something, and then
-// exit, it'll end up firing `process.emit('exit')`, so
-// the handler will be fired anyway.
-//
-// SIGBUS, SIGFPE, SIGSEGV and SIGILL, when not raised
-// artificially, inherently leave the process in a
-// state from which it is not safe to try and enter JS
-// listeners.
-module.exports = [
-  'SIGABRT',
-  'SIGALRM',
-  'SIGHUP',
-  'SIGINT',
-  'SIGTERM'
-]
-
-if (process.platform !== 'win32') {
-  module.exports.push(
-    'SIGVTALRM',
-    'SIGXCPU',
-    'SIGXFSZ',
-    'SIGUSR2',
-    'SIGTRAP',
-    'SIGSYS',
-    'SIGQUIT',
-    'SIGIOT'
-    // should detect profiler and enable/disable accordingly.
-    // see #21
-    // 'SIGPROF'
-  )
-}
-
-if (process.platform === 'linux') {
-  module.exports.push(
-    'SIGIO',
-    'SIGPOLL',
-    'SIGPWR',
-    'SIGSTKFLT',
-    'SIGUNUSED'
-  )
-}
-
-
-/***/ }),
-
-/***/ 656:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-// tar -x
-const hlo = __webpack_require__(891)
-const Unpack = __webpack_require__(63)
-const fs = __webpack_require__(747)
-const fsm = __webpack_require__(827)
-const path = __webpack_require__(622)
-
-const x = module.exports = (opt_, files, cb) => {
-  if (typeof opt_ === 'function')
-    cb = opt_, files = null, opt_ = {}
-  else if (Array.isArray(opt_))
-    files = opt_, opt_ = {}
-
-  if (typeof files === 'function')
-    cb = files, files = null
-
-  if (!files)
-    files = []
-  else
-    files = Array.from(files)
-
-  const opt = hlo(opt_)
-
-  if (opt.sync && typeof cb === 'function')
-    throw new TypeError('callback not supported for sync tar functions')
-
-  if (!opt.file && typeof cb === 'function')
-    throw new TypeError('callback only supported with file option')
-
-  if (files.length)
-    filesFilter(opt, files)
-
-  return opt.file && opt.sync ? extractFileSync(opt)
-    : opt.file ? extractFile(opt, cb)
-    : opt.sync ? extractSync(opt)
-    : extract(opt)
-}
-
-// construct a filter that limits the file entries listed
-// include child entries if a dir is included
-const filesFilter = (opt, files) => {
-  const map = new Map(files.map(f => [f.replace(/\/+$/, ''), true]))
-  const filter = opt.filter
-
-  const mapHas = (file, r) => {
-    const root = r || path.parse(file).root || '.'
-    const ret = file === root ? false
-      : map.has(file) ? map.get(file)
-      : mapHas(path.dirname(file), root)
-
-    map.set(file, ret)
-    return ret
-  }
-
-  opt.filter = filter
-    ? (file, entry) => filter(file, entry) && mapHas(file.replace(/\/+$/, ''))
-    : file => mapHas(file.replace(/\/+$/, ''))
-}
-
-const extractFileSync = opt => {
-  const u = new Unpack.Sync(opt)
-
-  const file = opt.file
-  let threw = true
-  let fd
-  const stat = fs.statSync(file)
-  // This trades a zero-byte read() syscall for a stat
-  // However, it will usually result in less memory allocation
-  const readSize = opt.maxReadSize || 16*1024*1024
-  const stream = new fsm.ReadStreamSync(file, {
-    readSize: readSize,
-    size: stat.size
-  })
-  stream.pipe(u)
-}
-
-const extractFile = (opt, cb) => {
-  const u = new Unpack(opt)
-  const readSize = opt.maxReadSize || 16*1024*1024
-
-  const file = opt.file
-  const p = new Promise((resolve, reject) => {
-    u.on('error', reject)
-    u.on('close', resolve)
-
-    // This trades a zero-byte read() syscall for a stat
-    // However, it will usually result in less memory allocation
-    fs.stat(file, (er, stat) => {
-      if (er)
-        reject(er)
-      else {
-        const stream = new fsm.ReadStream(file, {
-          readSize: readSize,
-          size: stat.size
-        })
-        stream.on('error', reject)
-        stream.pipe(u)
-      }
-    })
-  })
-  return cb ? p.then(cb, cb) : p
-}
-
-const extractSync = opt => {
-  return new Unpack.Sync(opt)
-}
-
-const extract = opt => {
-  return new Unpack(opt)
-}
-
-
-/***/ }),
-
-/***/ 662:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-const types = __webpack_require__(554)
-const MiniPass = __webpack_require__(635)
-
-const SLURP = Symbol('slurp')
-module.exports = class ReadEntry extends MiniPass {
-  constructor (header, ex, gex) {
-    super()
-    // read entries always start life paused.  this is to avoid the
-    // situation where Minipass's auto-ending empty streams results
-    // in an entry ending before we're ready for it.
-    this.pause()
-    this.extended = ex
-    this.globalExtended = gex
-    this.header = header
-    this.startBlockSize = 512 * Math.ceil(header.size / 512)
-    this.blockRemain = this.startBlockSize
-    this.remain = header.size
-    this.type = header.type
-    this.meta = false
-    this.ignore = false
-    switch (this.type) {
-      case 'File':
-      case 'OldFile':
-      case 'Link':
-      case 'SymbolicLink':
-      case 'CharacterDevice':
-      case 'BlockDevice':
-      case 'Directory':
-      case 'FIFO':
-      case 'ContiguousFile':
-      case 'GNUDumpDir':
-        break
-
-      case 'NextFileHasLongLinkpath':
-      case 'NextFileHasLongPath':
-      case 'OldGnuLongPath':
-      case 'GlobalExtendedHeader':
-      case 'ExtendedHeader':
-      case 'OldExtendedHeader':
-        this.meta = true
-        break
-
-      // NOTE: gnutar and bsdtar treat unrecognized types as 'File'
-      // it may be worth doing the same, but with a warning.
-      default:
-        this.ignore = true
-    }
-
-    this.path = header.path
-    this.mode = header.mode
-    if (this.mode)
-      this.mode = this.mode & 0o7777
-    this.uid = header.uid
-    this.gid = header.gid
-    this.uname = header.uname
-    this.gname = header.gname
-    this.size = header.size
-    this.mtime = header.mtime
-    this.atime = header.atime
-    this.ctime = header.ctime
-    this.linkpath = header.linkpath
-    this.uname = header.uname
-    this.gname = header.gname
-
-    if (ex) this[SLURP](ex)
-    if (gex) this[SLURP](gex, true)
-  }
-
-  write (data) {
-    const writeLen = data.length
-    if (writeLen > this.blockRemain)
-      throw new Error('writing more to entry than is appropriate')
-
-    const r = this.remain
-    const br = this.blockRemain
-    this.remain = Math.max(0, r - writeLen)
-    this.blockRemain = Math.max(0, br - writeLen)
-    if (this.ignore)
-      return true
-
-    if (r >= writeLen)
-      return super.write(data)
-
-    // r < writeLen
-    return super.write(data.slice(0, r))
-  }
-
-  [SLURP] (ex, global) {
-    for (let k in ex) {
-      // we slurp in everything except for the path attribute in
-      // a global extended header, because that's weird.
-      if (ex[k] !== null && ex[k] !== undefined &&
-          !(global && k === 'path'))
-        this[k] = ex[k]
-    }
-  }
-}
-
-
-/***/ }),
-
-/***/ 669:
-/***/ (function(module) {
-
-module.exports = require("util");
-
-/***/ }),
-
-/***/ 674:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticate;
-
-const { Deprecation } = __webpack_require__(692);
-const once = __webpack_require__(969);
-
-const deprecateAuthenticate = once((log, deprecation) => log.warn(deprecation));
-
-function authenticate(state, options) {
-  deprecateAuthenticate(
-    state.octokit.log,
-    new Deprecation(
-      '[@octokit/rest] octokit.authenticate() is deprecated. Use "auth" constructor option instead.'
-    )
-  );
-
-  if (!options) {
-    state.auth = false;
-    return;
-  }
-
-  switch (options.type) {
-    case "basic":
-      if (!options.username || !options.password) {
-        throw new Error(
-          "Basic authentication requires both a username and password to be set"
-        );
-      }
-      break;
-
-    case "oauth":
-      if (!options.token && !(options.key && options.secret)) {
-        throw new Error(
-          "OAuth2 authentication requires a token or key & secret to be set"
-        );
-      }
-      break;
-
-    case "token":
-    case "app":
-      if (!options.token) {
-        throw new Error("Token authentication requires a token to be set");
-      }
-      break;
-
-    default:
-      throw new Error(
-        "Invalid authentication type, must be 'basic', 'oauth', 'token' or 'app'"
-      );
-  }
-
-  state.auth = options;
-}
-
-
-/***/ }),
-
-/***/ 675:
-/***/ (function(module) {
-
-module.exports = function btoa(str) {
-  return new Buffer(str).toString('base64')
-}
-
-
-/***/ }),
-
-/***/ 692:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-class Deprecation extends Error {
-  constructor(message) {
-    super(message); // Maintains proper stack trace (only available on V8)
-
-    /* istanbul ignore next */
-
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
-
-    this.name = 'Deprecation';
-  }
-
-}
-
-exports.Deprecation = Deprecation;
-
-
-/***/ }),
-
-/***/ 697:
-/***/ (function(module) {
-
-"use strict";
-
-module.exports = (promise, onFinally) => {
-	onFinally = onFinally || (() => {});
-
-	return promise.then(
-		val => new Promise(resolve => {
-			resolve(onFinally());
-		}).then(() => val),
-		err => new Promise(resolve => {
-			resolve(onFinally());
-		}).then(() => {
-			throw err;
-		})
-	);
-};
-
-
-/***/ }),
-
 /***/ 726:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -13313,7 +12803,7 @@ class PackJob {
   }
 }
 
-const MiniPass = __webpack_require__(635)
+const MiniPass = __webpack_require__(720)
 const zlib = __webpack_require__(133)
 const ReadEntry = __webpack_require__(662)
 const WriteEntry = __webpack_require__(303)
@@ -13844,7 +13334,7 @@ class Trivy {
         throw new Error(`Failed vulnerability scan using Trivy.
       stdout: ${result.stdout}
       stderr: ${result.stderr}
-      erorr: ${result.error}
+      error: ${result.error}
     `);
     }
     parse(vulnerabilities) {
@@ -14494,7 +13984,7 @@ function sync (path, options) {
 
 "use strict";
 
-const MiniPass = __webpack_require__(841)
+const MiniPass = __webpack_require__(720)
 const EE = __webpack_require__(614).EventEmitter
 const fs = __webpack_require__(747)
 
@@ -14923,552 +14413,6 @@ exports.WriteStreamSync = WriteStreamSync
 /***/ (function(module) {
 
 module.exports = require("url");
-
-/***/ }),
-
-/***/ 841:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-const EE = __webpack_require__(614)
-const Stream = __webpack_require__(413)
-const Yallist = __webpack_require__(612)
-const SD = __webpack_require__(304).StringDecoder
-
-const EOF = Symbol('EOF')
-const MAYBE_EMIT_END = Symbol('maybeEmitEnd')
-const EMITTED_END = Symbol('emittedEnd')
-const EMITTING_END = Symbol('emittingEnd')
-const CLOSED = Symbol('closed')
-const READ = Symbol('read')
-const FLUSH = Symbol('flush')
-const FLUSHCHUNK = Symbol('flushChunk')
-const ENCODING = Symbol('encoding')
-const DECODER = Symbol('decoder')
-const FLOWING = Symbol('flowing')
-const PAUSED = Symbol('paused')
-const RESUME = Symbol('resume')
-const BUFFERLENGTH = Symbol('bufferLength')
-const BUFFERPUSH = Symbol('bufferPush')
-const BUFFERSHIFT = Symbol('bufferShift')
-const OBJECTMODE = Symbol('objectMode')
-const DESTROYED = Symbol('destroyed')
-
-// TODO remove when Node v8 support drops
-const doIter = global._MP_NO_ITERATOR_SYMBOLS_  !== '1'
-const ASYNCITERATOR = doIter && Symbol.asyncIterator
-  || Symbol('asyncIterator not implemented')
-const ITERATOR = doIter && Symbol.iterator
-  || Symbol('iterator not implemented')
-
-// events that mean 'the stream is over'
-// these are treated specially, and re-emitted
-// if they are listened for after emitting.
-const isEndish = ev =>
-  ev === 'end' ||
-  ev === 'finish' ||
-  ev === 'prefinish'
-
-const isArrayBuffer = b => b instanceof ArrayBuffer ||
-  typeof b === 'object' &&
-  b.constructor &&
-  b.constructor.name === 'ArrayBuffer' &&
-  b.byteLength >= 0
-
-const isArrayBufferView = b => !Buffer.isBuffer(b) && ArrayBuffer.isView(b)
-
-module.exports = class Minipass extends Stream {
-  constructor (options) {
-    super()
-    this[FLOWING] = false
-    // whether we're explicitly paused
-    this[PAUSED] = false
-    this.pipes = new Yallist()
-    this.buffer = new Yallist()
-    this[OBJECTMODE] = options && options.objectMode || false
-    if (this[OBJECTMODE])
-      this[ENCODING] = null
-    else
-      this[ENCODING] = options && options.encoding || null
-    if (this[ENCODING] === 'buffer')
-      this[ENCODING] = null
-    this[DECODER] = this[ENCODING] ? new SD(this[ENCODING]) : null
-    this[EOF] = false
-    this[EMITTED_END] = false
-    this[EMITTING_END] = false
-    this[CLOSED] = false
-    this.writable = true
-    this.readable = true
-    this[BUFFERLENGTH] = 0
-    this[DESTROYED] = false
-  }
-
-  get bufferLength () { return this[BUFFERLENGTH] }
-
-  get encoding () { return this[ENCODING] }
-  set encoding (enc) {
-    if (this[OBJECTMODE])
-      throw new Error('cannot set encoding in objectMode')
-
-    if (this[ENCODING] && enc !== this[ENCODING] &&
-        (this[DECODER] && this[DECODER].lastNeed || this[BUFFERLENGTH]))
-      throw new Error('cannot change encoding')
-
-    if (this[ENCODING] !== enc) {
-      this[DECODER] = enc ? new SD(enc) : null
-      if (this.buffer.length)
-        this.buffer = this.buffer.map(chunk => this[DECODER].write(chunk))
-    }
-
-    this[ENCODING] = enc
-  }
-
-  setEncoding (enc) {
-    this.encoding = enc
-  }
-
-  get objectMode () { return this[OBJECTMODE] }
-  set objectMode (ॐ ) { this[OBJECTMODE] = this[OBJECTMODE] || !!ॐ  }
-
-  write (chunk, encoding, cb) {
-    if (this[EOF])
-      throw new Error('write after end')
-
-    if (this[DESTROYED]) {
-      this.emit('error', Object.assign(
-        new Error('Cannot call write after a stream was destroyed'),
-        { code: 'ERR_STREAM_DESTROYED' }
-      ))
-      return true
-    }
-
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-
-    if (!encoding)
-      encoding = 'utf8'
-
-    // convert array buffers and typed array views into buffers
-    // at some point in the future, we may want to do the opposite!
-    // leave strings and buffers as-is
-    // anything else switches us into object mode
-    if (!this[OBJECTMODE] && !Buffer.isBuffer(chunk)) {
-      if (isArrayBufferView(chunk))
-        chunk = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-      else if (isArrayBuffer(chunk))
-        chunk = Buffer.from(chunk)
-      else if (typeof chunk !== 'string')
-        // use the setter so we throw if we have encoding set
-        this.objectMode = true
-    }
-
-    // this ensures at this point that the chunk is a buffer or string
-    // don't buffer it up or send it to the decoder
-    if (!this.objectMode && !chunk.length) {
-      const ret = this.flowing
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-      if (cb)
-        cb()
-      return ret
-    }
-
-    // fast-path writing strings of same encoding to a stream with
-    // an empty buffer, skipping the buffer/decoder dance
-    if (typeof chunk === 'string' && !this[OBJECTMODE] &&
-        // unless it is a string already ready for us to use
-        !(encoding === this[ENCODING] && !this[DECODER].lastNeed)) {
-      chunk = Buffer.from(chunk, encoding)
-    }
-
-    if (Buffer.isBuffer(chunk) && this[ENCODING])
-      chunk = this[DECODER].write(chunk)
-
-    try {
-      return this.flowing
-        ? (this.emit('data', chunk), this.flowing)
-        : (this[BUFFERPUSH](chunk), false)
-    } finally {
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-      if (cb)
-        cb()
-    }
-  }
-
-  read (n) {
-    if (this[DESTROYED])
-      return null
-
-    try {
-      if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH])
-        return null
-
-      if (this[OBJECTMODE])
-        n = null
-
-      if (this.buffer.length > 1 && !this[OBJECTMODE]) {
-        if (this.encoding)
-          this.buffer = new Yallist([
-            Array.from(this.buffer).join('')
-          ])
-        else
-          this.buffer = new Yallist([
-            Buffer.concat(Array.from(this.buffer), this[BUFFERLENGTH])
-          ])
-      }
-
-      return this[READ](n || null, this.buffer.head.value)
-    } finally {
-      this[MAYBE_EMIT_END]()
-    }
-  }
-
-  [READ] (n, chunk) {
-    if (n === chunk.length || n === null)
-      this[BUFFERSHIFT]()
-    else {
-      this.buffer.head.value = chunk.slice(n)
-      chunk = chunk.slice(0, n)
-      this[BUFFERLENGTH] -= n
-    }
-
-    this.emit('data', chunk)
-
-    if (!this.buffer.length && !this[EOF])
-      this.emit('drain')
-
-    return chunk
-  }
-
-  end (chunk, encoding, cb) {
-    if (typeof chunk === 'function')
-      cb = chunk, chunk = null
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-    if (chunk)
-      this.write(chunk, encoding)
-    if (cb)
-      this.once('end', cb)
-    this[EOF] = true
-    this.writable = false
-
-    // if we haven't written anything, then go ahead and emit,
-    // even if we're not reading.
-    // we'll re-emit if a new 'end' listener is added anyway.
-    // This makes MP more suitable to write-only use cases.
-    if (this.flowing || !this[PAUSED])
-      this[MAYBE_EMIT_END]()
-    return this
-  }
-
-  // don't let the internal resume be overwritten
-  [RESUME] () {
-    if (this[DESTROYED])
-      return
-
-    this[PAUSED] = false
-    this[FLOWING] = true
-    this.emit('resume')
-    if (this.buffer.length)
-      this[FLUSH]()
-    else if (this[EOF])
-      this[MAYBE_EMIT_END]()
-    else
-      this.emit('drain')
-  }
-
-  resume () {
-    return this[RESUME]()
-  }
-
-  pause () {
-    this[FLOWING] = false
-    this[PAUSED] = true
-  }
-
-  get destroyed () {
-    return this[DESTROYED]
-  }
-
-  get flowing () {
-    return this[FLOWING]
-  }
-
-  get paused () {
-    return this[PAUSED]
-  }
-
-  [BUFFERPUSH] (chunk) {
-    if (this[OBJECTMODE])
-      this[BUFFERLENGTH] += 1
-    else
-      this[BUFFERLENGTH] += chunk.length
-    return this.buffer.push(chunk)
-  }
-
-  [BUFFERSHIFT] () {
-    if (this.buffer.length) {
-      if (this[OBJECTMODE])
-        this[BUFFERLENGTH] -= 1
-      else
-        this[BUFFERLENGTH] -= this.buffer.head.value.length
-    }
-    return this.buffer.shift()
-  }
-
-  [FLUSH] () {
-    do {} while (this[FLUSHCHUNK](this[BUFFERSHIFT]()))
-
-    if (!this.buffer.length && !this[EOF])
-      this.emit('drain')
-  }
-
-  [FLUSHCHUNK] (chunk) {
-    return chunk ? (this.emit('data', chunk), this.flowing) : false
-  }
-
-  pipe (dest, opts) {
-    if (this[DESTROYED])
-      return
-
-    const ended = this[EMITTED_END]
-    opts = opts || {}
-    if (dest === process.stdout || dest === process.stderr)
-      opts.end = false
-    else
-      opts.end = opts.end !== false
-
-    const p = { dest: dest, opts: opts, ondrain: _ => this[RESUME]() }
-    this.pipes.push(p)
-
-    dest.on('drain', p.ondrain)
-    this[RESUME]()
-    // piping an ended stream ends immediately
-    if (ended && p.opts.end)
-      p.dest.end()
-    return dest
-  }
-
-  addListener (ev, fn) {
-    return this.on(ev, fn)
-  }
-
-  on (ev, fn) {
-    try {
-      return super.on(ev, fn)
-    } finally {
-      if (ev === 'data' && !this.pipes.length && !this.flowing)
-        this[RESUME]()
-      else if (isEndish(ev) && this[EMITTED_END]) {
-        super.emit(ev)
-        this.removeAllListeners(ev)
-      }
-    }
-  }
-
-  get emittedEnd () {
-    return this[EMITTED_END]
-  }
-
-  [MAYBE_EMIT_END] () {
-    if (!this[EMITTING_END] &&
-        !this[EMITTED_END] &&
-        !this[DESTROYED] &&
-        this.buffer.length === 0 &&
-        this[EOF]) {
-      this[EMITTING_END] = true
-      this.emit('end')
-      this.emit('prefinish')
-      this.emit('finish')
-      if (this[CLOSED])
-        this.emit('close')
-      this[EMITTING_END] = false
-    }
-  }
-
-  emit (ev, data) {
-    // error and close are only events allowed after calling destroy()
-    if (ev !== 'error' && ev !== 'close' && ev !== DESTROYED && this[DESTROYED])
-      return
-    else if (ev === 'data') {
-      if (!data)
-        return
-
-      if (this.pipes.length)
-        this.pipes.forEach(p =>
-          p.dest.write(data) === false && this.pause())
-    } else if (ev === 'end') {
-      // only actual end gets this treatment
-      if (this[EMITTED_END] === true)
-        return
-
-      this[EMITTED_END] = true
-      this.readable = false
-
-      if (this[DECODER]) {
-        data = this[DECODER].end()
-        if (data) {
-          this.pipes.forEach(p => p.dest.write(data))
-          super.emit('data', data)
-        }
-      }
-
-      this.pipes.forEach(p => {
-        p.dest.removeListener('drain', p.ondrain)
-        if (p.opts.end)
-          p.dest.end()
-      })
-    } else if (ev === 'close') {
-      this[CLOSED] = true
-      // don't emit close before 'end' and 'finish'
-      if (!this[EMITTED_END] && !this[DESTROYED])
-        return
-    }
-
-    // TODO: replace with a spread operator when Node v4 support drops
-    const args = new Array(arguments.length)
-    args[0] = ev
-    args[1] = data
-    if (arguments.length > 2) {
-      for (let i = 2; i < arguments.length; i++) {
-        args[i] = arguments[i]
-      }
-    }
-
-    try {
-      return super.emit.apply(this, args)
-    } finally {
-      if (!isEndish(ev))
-        this[MAYBE_EMIT_END]()
-      else
-        this.removeAllListeners(ev)
-    }
-  }
-
-  // const all = await stream.collect()
-  collect () {
-    const buf = []
-    if (!this[OBJECTMODE])
-      buf.dataLength = 0
-    // set the promise first, in case an error is raised
-    // by triggering the flow here.
-    const p = this.promise()
-    this.on('data', c => {
-      buf.push(c)
-      if (!this[OBJECTMODE])
-        buf.dataLength += c.length
-    })
-    return p.then(() => buf)
-  }
-
-  // const data = await stream.concat()
-  concat () {
-    return this[OBJECTMODE]
-      ? Promise.reject(new Error('cannot concat in objectMode'))
-      : this.collect().then(buf =>
-          this[OBJECTMODE]
-            ? Promise.reject(new Error('cannot concat in objectMode'))
-            : this[ENCODING] ? buf.join('') : Buffer.concat(buf, buf.dataLength))
-  }
-
-  // stream.promise().then(() => done, er => emitted error)
-  promise () {
-    return new Promise((resolve, reject) => {
-      this.on(DESTROYED, () => reject(new Error('stream destroyed')))
-      this.on('end', () => resolve())
-      this.on('error', er => reject(er))
-    })
-  }
-
-  // for await (let chunk of stream)
-  [ASYNCITERATOR] () {
-    const next = () => {
-      const res = this.read()
-      if (res !== null)
-        return Promise.resolve({ done: false, value: res })
-
-      if (this[EOF])
-        return Promise.resolve({ done: true })
-
-      let resolve = null
-      let reject = null
-      const onerr = er => {
-        this.removeListener('data', ondata)
-        this.removeListener('end', onend)
-        reject(er)
-      }
-      const ondata = value => {
-        this.removeListener('error', onerr)
-        this.removeListener('end', onend)
-        this.pause()
-        resolve({ value: value, done: !!this[EOF] })
-      }
-      const onend = () => {
-        this.removeListener('error', onerr)
-        this.removeListener('data', ondata)
-        resolve({ done: true })
-      }
-      const ondestroy = () => onerr(new Error('stream destroyed'))
-      return new Promise((res, rej) => {
-        reject = rej
-        resolve = res
-        this.once(DESTROYED, ondestroy)
-        this.once('error', onerr)
-        this.once('end', onend)
-        this.once('data', ondata)
-      })
-    }
-
-    return { next }
-  }
-
-  // for (let chunk of stream)
-  [ITERATOR] () {
-    const next = () => {
-      const value = this.read()
-      const done = value === null
-      return { value, done }
-    }
-    return { next }
-  }
-
-  destroy (er) {
-    if (this[DESTROYED]) {
-      if (er)
-        this.emit('error', er)
-      else
-        this.emit(DESTROYED)
-      return this
-    }
-
-    this[DESTROYED] = true
-
-    // throw away all buffered data, it's never coming out
-    this.buffer = new Yallist()
-    this[BUFFERLENGTH] = 0
-
-    if (typeof this.close === 'function' && !this[CLOSED])
-      this.close()
-
-    if (er)
-      this.emit('error', er)
-    else // if no error to emit, still reject pending promises
-      this.emit(DESTROYED)
-
-    return this
-  }
-
-  static isStream (s) {
-    return !!s && (s instanceof Minipass || s instanceof Stream ||
-      s instanceof EE && (
-        typeof s.pipe === 'function' || // readable
-        (typeof s.write === 'function' && typeof s.end === 'function') // writable
-      ))
-  }
-}
-
 
 /***/ }),
 

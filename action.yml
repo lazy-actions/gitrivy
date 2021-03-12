@@ -39,6 +39,10 @@ inputs:
   issue_assignee:
     description: 'Issue assignee (separated by commma)'
     required: false
+  fail_on_vulnerabilities:
+    description: Whether the action should fail if a vulnerability was found
+    default: 'false'
+    required: false
 
 outputs:
   issue_number:
