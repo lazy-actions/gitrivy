@@ -1,0 +1,20 @@
+name: Fork Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * MON'
+
+jobs:
+  sync:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: tgymnich/fork-sync@v1.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          base: master
+          head: main
+          auto_approve: true
+          personal_token: ${{ secrets.BOT_GITHUB_TOKEN }}
