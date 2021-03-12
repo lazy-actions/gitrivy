@@ -36,7 +36,7 @@ describe('getDownloadUrl', () => {
     const os = 'Linux';
     const result = await downloader['getDownloadUrl'](version, os);
     expect(result).toMatch(
-      /releases\/download\/v[0-9]\.[0-9]\.[0-9]\/trivy_[0-9]\.[0-9]\.[0-9]_Linux-64bit\.tar\.gz$/
+      /releases\/download\/v[0-9]*\.[0-9]*\.[0-9]*\/trivy_[0-9]*\.[0-9]*\.[0-9]*_Linux-64bit\.tar\.gz$/
     );
   });
 

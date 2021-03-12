@@ -1,6 +1,6 @@
 name: CI
 
-on: 
+on:
   workflow_dispatch:
   push:
 
@@ -8,33 +8,66 @@ env:
   IMAGE_NAME: alpine:3.10.1
 
 jobs:
-  test1:
-    name: Test for with parameter
+  test:
+    name: Test unit
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
 
-    - name: Install dependencies
-      run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-    - name: Build
-      run: yarn run build
+      - name: Jest
+        run: yarn run test
 
-    - name: Pull docker image
-      run: docker pull ${{ env.IMAGE_NAME }}
+  test1:
+    name: Test not to create issue
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2.3.4
 
-    - uses: ./
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        image: ${{ env.IMAGE_NAME }}
-        issue_label: trivy,vulnerability,test
-        issue_title: Security Alert Test
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build
+        run: yarn run build
+
+      - name: Pull docker image
+        run: docker pull ${{ env.IMAGE_NAME }}
+
+      - uses: ./
+        with:
+          issue: 'false'
 
   test2:
+    name: Test for with parameter
+    runs-on: ubuntu-18.04
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v2.3.4
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build
+        run: yarn run build
+
+      - name: Pull docker image
+        run: docker pull ${{ env.IMAGE_NAME }}
+
+      - uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ env.IMAGE_NAME }}
+          issue_label: trivy,vulnerability,test
+          issue_title: Security Alert Test
+
+  test3:
     name: Test for getting image name from enviroment variable
     runs-on: ubuntu-18.04
+    if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
 
       - name: Install dependencies
         run: yarn install
@@ -50,22 +83,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue_label: trivy,vulnerability,test
           issue_title: Security Alert Test
-
-  test3:
-    name: Test not to create issue
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v1
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Build
-        run: yarn run build
-
-      - name: Pull docker image
-        run: docker pull ${{ env.IMAGE_NAME }}
-
-      - uses: ./
-        with:
-          issue: 'false'
