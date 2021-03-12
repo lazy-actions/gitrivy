@@ -14,7 +14,7 @@ jobs:
     name: Test with jest
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
 
       - uses: actions/setup-node@v1
         with:
