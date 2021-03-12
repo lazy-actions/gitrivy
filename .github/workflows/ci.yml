@@ -26,7 +26,7 @@ jobs:
     - uses: ./
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        image: alpine:${{ env.IMAGE_NAME }}
+        image: ${{ env.IMAGE_NAME }}
         issue_label: trivy,vulnerability,test
         issue_title: Security Alert Test
 
