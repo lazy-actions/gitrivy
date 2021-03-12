@@ -17,7 +17,7 @@ jobs:
     name: Test for with parameter
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2.3.4
 
     - name: Install dependencies
       run: yarn install
@@ -48,7 +48,7 @@ jobs:
     name: Test for getting image name from enviroment variable
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
 
       - name: Install dependencies
         run: yarn install
@@ -78,7 +78,7 @@ jobs:
     name: Test not to create issue
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
 
       - name: Install dependencies
         run: yarn install
