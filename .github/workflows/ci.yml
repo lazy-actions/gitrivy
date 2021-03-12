@@ -1,4 +1,4 @@
-name: Test my typescript action
+name: CI
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ jobs:
     name: Test for with parameter
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v2.3.4
+    - uses: actions/checkout@v1
 
     - name: Install dependencies
       run: yarn install
@@ -26,29 +26,20 @@ jobs:
       run: yarn run build
 
     - name: Pull docker image
-      run: docker pull alpine:3.10.3
+      run: docker pull ${{ env.IMAGE_NAME }}
 
     - uses: ./
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        image: alpine:3.10.1
+        image: alpine:${{ env.IMAGE_NAME }}
         issue_label: trivy,vulnerability,test
         issue_title: Security Alert Test
-        issue_assignee: homoluctus
-
-    - uses: homoluctus/slatify@v1.9.0
-      if: always()
-      with:
-        type: ${{ job.status }}
-        job_name: ':ts: *test gitrivy (test1)*'
-        channel: '#develop'
-        url: ${{ secrets.SLACK_WEBHOOK }}
 
   test2:
     name: Test for getting image name from enviroment variable
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2.3.4
+      - uses: actions/checkout@v1
 
       - name: Install dependencies
         run: yarn install
@@ -57,28 +48,19 @@ jobs:
         run: yarn run build
 
       - name: Pull docker image
-        run: docker pull alpine:3.10.3
+        run: docker pull ${{ env.IMAGE_NAME }}
 
       - uses: ./
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue_label: trivy,vulnerability,test
           issue_title: Security Alert Test
-          issue_assignee: homoluctus
-
-      - uses: homoluctus/slatify@v1.9.0
-        if: always()
-        with:
-          type: ${{ job.status }}
-          job_name: ':ts: *test gitrivy (test2)*'
-          channel: '#develop'
-          url: ${{ secrets.SLACK_WEBHOOK }}
 
   test3:
     name: Test not to create issue
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2.3.4
+      - uses: actions/checkout@v1
 
       - name: Install dependencies
         run: yarn install
@@ -87,16 +69,8 @@ jobs:
         run: yarn run build
 
       - name: Pull docker image
-        run: docker pull alpine:3.10.3
+        run: docker pull ${{ env.IMAGE_NAME }}
 
       - uses: ./
         with:
           issue: 'false'
-
-      - uses: homoluctus/slatify@v1.9.0
-        if: always()
-        with:
-          type: ${{ job.status }}
-          job_name: ':ts: *test gitrivy (test3)*'
-          channel: '#develop'
-          url: ${{ secrets.SLACK_WEBHOOK }}
