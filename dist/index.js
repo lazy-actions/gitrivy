@@ -6572,7 +6572,7 @@ function run() {
         ${result}`);
                 return;
             }
-            const issueContent = trivy.parse(result);
+            const issueContent = trivy.parse(image, result);
             if (issueContent === '') {
                 core.info('Vulnerabilities were not found.\nYour maintenance looks good 👍');
                 return;
@@ -13337,7 +13337,7 @@ class Trivy {
       error: ${result.error}
     `);
     }
-    parse(vulnerabilities) {
+    parse(image, vulnerabilities) {
         let issueContent = '';
         for (const vuln of vulnerabilities) {
             if (vuln.Vulnerabilities === null)
@@ -13361,7 +13361,7 @@ class Trivy {
             }
             issueContent += `${vulnTable}\n\n`;
         }
-        return issueContent;
+        return issueContent ? `_(image scanned: \`${image}\`)_\n\n${issueContent}` : issueContent;
     }
     validateOption(option) {
         this.validateSeverity(option.severity.split(','));
