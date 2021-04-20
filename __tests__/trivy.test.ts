@@ -36,7 +36,7 @@ describe('getDownloadUrl', () => {
     const os = 'Linux';
     const result = await downloader['getDownloadUrl'](version, os);
     expect(result).toMatch(
-      /releases\/download\/v[0-9]\.[0-9]\.[0-9]\/trivy_[0-9]\.[0-9]\.[0-9]_Linux-64bit\.tar\.gz$/
+      /releases\/download\/v[0-9]+\.[0-9]+\.[0-9]+\/trivy_[0-9]+\.[0-9]+\.[0-9]+_Linux-64bit\.tar\.gz$/
     );
   });
 
@@ -198,6 +198,8 @@ describe('Trivy scan', () => {
 });
 
 describe('Parse', () => {
+  const image: string = 'alpine:3.10';
+
   test('the result without vulnerabilities', () => {
     const vulnerabilities: Vulnerability[] = [
       {
@@ -205,7 +207,7 @@ describe('Parse', () => {
         Vulnerabilities: null,
       },
     ];
-    const result = trivy.parse(vulnerabilities);
+    const result = trivy.parse(image, vulnerabilities);
     expect(result).toBe('');
   });
 
@@ -248,10 +250,11 @@ describe('Parse', () => {
         ],
       },
     ];
-    const result = trivy.parse(vulnerabilities);
+    const result = trivy.parse(image, vulnerabilities);
     expect(result).toMatch(
       /\|Title\|Severity\|CVE\|Package Name\|Installed Version\|Fixed Version\|References\|/
     );
+    expect(result).toContain(image);
   });
 });
 

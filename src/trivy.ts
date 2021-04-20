@@ -164,7 +164,7 @@ export class Trivy {
     `);
   }
 
-  public parse(vulnerabilities: Vulnerability[]): string {
+  public parse(image: string, vulnerabilities: Vulnerability[]): string {
     let issueContent: string = '';
 
     for (const vuln of vulnerabilities) {
@@ -191,7 +191,8 @@ export class Trivy {
       }
       issueContent += `${vulnTable}\n\n`;
     }
-    return issueContent;
+
+    return issueContent ? `_(image scanned: \`${image}\`)_\n\n${issueContent}` : issueContent;
   }
 
   private validateOption(option: TrivyOption): void {

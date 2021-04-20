@@ -47,7 +47,7 @@ async function run() {
       return;
     }
 
-    const issueContent: string = trivy.parse(result as Vulnerability[]);
+    const issueContent: string = trivy.parse(image, result as Vulnerability[]);
 
     if (issueContent === '') {
       core.info(
