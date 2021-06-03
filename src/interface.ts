@@ -14,21 +14,5 @@ export interface TrivyOption {
   severity: string;
   vulnType: string;
   ignoreUnfixed: boolean;
-  format: string;
-}
-
-export interface Vulnerability {
-  Target: string;
-  Vulnerabilities: CVE[] | null;
-}
-
-interface CVE {
-  VulnerabilityID: string;
-  PkgName: string;
-  InstalledVersion: string;
-  FixedVersion: string;
-  Title?: string;
-  Description: string;
-  Severity: string;
-  References: string[];
+  template: string;
 }
