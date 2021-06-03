@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { Downloader } from '../src/downloader';
 import { scan } from '../src/trivy';
-import { TrivyOption } from '../src/interface';
+import { TrivyCmdOption } from '../src/interface';
 import { removeTrivyCmd } from './helper';
 
 const downloader = new Downloader();
@@ -22,7 +22,7 @@ describe('Trivy scan', () => {
   });
 
   test('with valid option', () => {
-    const option: TrivyOption = {
+    const option: TrivyCmdOption = {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: true,
@@ -33,7 +33,7 @@ describe('Trivy scan', () => {
   });
 
   test('without ignoreUnfixed', () => {
-    const option: TrivyOption = {
+    const option: TrivyCmdOption = {
       severity: 'HIGH,CRITICAL',
       vulnType: 'os,library',
       ignoreUnfixed: false,
@@ -41,29 +41,5 @@ describe('Trivy scan', () => {
     };
     const result: string = scan(trivyPath, image, option) as string;
     expect(result.length).toBeGreaterThanOrEqual(1);
-  });
-
-  test('with invalid severity', () => {
-    const invalidOption: TrivyOption = {
-      severity: 'INVALID',
-      vulnType: 'os,library',
-      ignoreUnfixed: true,
-      template
-    };
-    expect(() => {
-      scan(trivyPath, image, invalidOption);
-    }).toThrowError('Trivy option error: INVALID is unknown severity');
-  });
-
-  test('with invalid vulnType', () => {
-    const invalidOption: TrivyOption = {
-      severity: 'HIGH',
-      vulnType: 'INVALID',
-      ignoreUnfixed: true,
-      template
-    };
-    expect(() => {
-      scan(trivyPath, image, invalidOption);
-    }).toThrowError('Trivy option error: INVALID is unknown vuln-type');
   });
 });
