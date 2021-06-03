@@ -4388,6 +4388,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TrivyCmdOptionValidator = void 0;
 const fs = __importStar(__webpack_require__(747));
+const core = __importStar(__webpack_require__(470));
 class TrivyCmdOptionValidator {
     constructor(option) {
         this.option = option;
@@ -4422,7 +4423,11 @@ class TrivyCmdOptionValidator {
         return true;
     }
     validateTemplate() {
-        const template = this.option.template;
+        if (!this.option.template.startsWith('@')) {
+            core.warning('template parameter prefix must be "@"');
+            this.option.template = `@${this.option.template}`;
+        }
+        const template = this.option.template.replace('@', '');
         const exists = fs.existsSync(template);
         if (!exists) {
             throw new Error(`Could not find ${template}`);
@@ -10289,7 +10294,7 @@ class Inputs {
                 severity: core.getInput('severity').replace(/\s+/g, ''),
                 vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
                 ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
-                template: core.getInput('template') || __webpack_require__.ab + "default.tpl"
+                template: core.getInput('template') || `@${__dirname}/template/default.tpl`
             }
         };
         this.issue = {
