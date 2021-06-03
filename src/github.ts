@@ -21,7 +21,9 @@ export class GitHub {
       labels: labels.join(','),
     });
 
-    return trivyIssues.filter(issue => issue.body.includes(image));
+    return trivyIssues.filter(
+      issue => issue.body && issue.body.includes(image)
+    );
   }
 
   async createIssue(options: IssueOption): Promise<IssueResponse> {
