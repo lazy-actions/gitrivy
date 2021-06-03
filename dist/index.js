@@ -3634,44 +3634,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(__webpack_require__(470));
 const downloader_1 = __webpack_require__(379);
 const github_1 = __webpack_require__(146);
+const inputs_1 = __webpack_require__(679);
 const trivy_1 = __webpack_require__(737);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        const trivyVersion = core.getInput('trivy_version').replace(/^v/, '');
-        const image = core.getInput('image') || process.env.IMAGE_NAME;
-        if (!image) {
-            throw new Error('Please specify scan target image name');
-        }
-        const trivyOption = {
-            severity: core.getInput('severity').replace(/\s+/g, ''),
-            vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
-            ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
-            template: core.getInput('template') || __webpack_require__.ab + "default.tpl",
-        };
+        const inputs = new inputs_1.Inputs();
+        inputs.validate();
         const downloader = new downloader_1.Downloader();
-        const trivyCmdPath = yield downloader.download(trivyVersion);
-        const result = trivy_1.scan(trivyCmdPath, image, trivyOption);
+        const trivyCmdPath = yield downloader.download(inputs.trivy.version);
+        const result = trivy_1.scan(trivyCmdPath, inputs.image, inputs.trivy.option);
         if (!result) {
             return;
         }
-        const issueOption = {
-            title: core.getInput('issue_title'),
-            body: result,
-            labels: core
-                .getInput('issue_label')
-                .replace(/\s+/g, '')
-                .split(','),
-            assignees: core
-                .getInput('issue_assignee')
-                .replace(/\s+/g, '')
-                .split(','),
-        };
-        const token = core.getInput('token', { required: true });
-        const github = new github_1.GitHub(token);
-        const output = yield github.createOrUpdateIssue(image, issueOption);
+        const github = new github_1.GitHub(inputs.token);
+        const issueOption = Object.assign({ body: result }, inputs.issue);
+        const output = yield github.createOrUpdateIssue(inputs.image, issueOption);
         core.setOutput('html_url', output.htmlUrl);
         core.setOutput('issue_number', output.issueNumber.toString());
-        if (core.getInput('fail_on_vulnerabilities') === 'true') {
+        if (inputs.fail_on_vulnerabilities) {
             throw new Error('Abnormal termination because vulnerabilities found');
         }
     });
@@ -4377,6 +4357,83 @@ module.exports = function (Yallist) {
     }
   }
 }
+
+
+/***/ }),
+
+/***/ 409:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TrivyCmdOptionValidator = void 0;
+const fs = __importStar(__webpack_require__(747));
+class TrivyCmdOptionValidator {
+    constructor(option) {
+        this.option = option;
+    }
+    validate() {
+        this.validateSeverity();
+        this.validateVulnType();
+        this.validateTemplate();
+    }
+    validateSeverity() {
+        const severities = this.option.severity.split(',');
+        const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
+        if (!this.validateArrayOption(allowedSeverities, severities)) {
+            throw new Error(`Trivy option error: ${severities.join(',')} is unknown severity.
+        Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`);
+        }
+    }
+    validateVulnType() {
+        const vulnTypes = this.option.vulnType.split(',');
+        const allowedVulnTypes = /os|library/;
+        if (!this.validateArrayOption(allowedVulnTypes, vulnTypes)) {
+            throw new Error(`Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
+        Trivy supports os and library.`);
+        }
+    }
+    validateArrayOption(allowedValue, options) {
+        for (const option of options) {
+            if (!allowedValue.test(option)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    validateTemplate() {
+        const template = this.option.template;
+        const exists = fs.existsSync(template);
+        if (!exists) {
+            throw new Error(`Could not find ${template}`);
+        }
+        const isFile = fs.statSync(template).isFile();
+        if (!isFile) {
+            throw new Error(`${template} is not a file`);
+        }
+    }
+}
+exports.TrivyCmdOptionValidator = TrivyCmdOptionValidator;
 
 
 /***/ }),
@@ -10190,6 +10247,75 @@ module.exports = require("util");
 
 /***/ }),
 
+/***/ 679:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Inputs = void 0;
+const core = __importStar(__webpack_require__(470));
+const validator_1 = __webpack_require__(409);
+class Inputs {
+    constructor() {
+        this.token = core.getInput('token', { required: true });
+        const image = core.getInput('image') || process.env.IMAGE_NAME;
+        if (!image) {
+            throw new Error('Please specify target image');
+        }
+        this.image = image;
+        this.trivy = {
+            version: core.getInput('trivy_version').replace(/^v/, ''),
+            option: {
+                severity: core.getInput('severity').replace(/\s+/g, ''),
+                vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
+                ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
+                template: core.getInput('template') || __webpack_require__.ab + "default.tpl"
+            }
+        };
+        this.issue = {
+            title: core.getInput('issue_title'),
+            labels: core
+                .getInput('issue_label')
+                .replace(/\s+/g, '')
+                .split(','),
+            assignees: core
+                .getInput('issue_assignee')
+                .replace(/\s+/g, '')
+                .split(',')
+        };
+        this.fail_on_vulnerabilities =
+            core.getInput('fail_on_vulnerabilities') === 'true';
+    }
+    validate() {
+        const trivy = new validator_1.TrivyCmdOptionValidator(this.trivy.option);
+        trivy.validate();
+    }
+}
+exports.Inputs = Inputs;
+
+
+/***/ }),
+
 /***/ 692:
 /***/ (function(__unusedmodule, exports) {
 
@@ -11257,7 +11383,6 @@ exports.scan = void 0;
 const child_process_1 = __webpack_require__(129);
 const core = __importStar(__webpack_require__(470));
 function scan(trivyPath, image, option) {
-    validateOption(option);
     const args = [
         '--severity',
         option.severity,
@@ -11293,34 +11418,6 @@ function scan(trivyPath, image, option) {
     }
 }
 exports.scan = scan;
-function validateOption(option) {
-    validateSeverity(option.severity.split(','));
-    validateVulnType(option.vulnType.split(','));
-}
-function validateSeverity(severities) {
-    const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-    if (!validateArrayOption(allowedSeverities, severities)) {
-        throw new Error(`Trivy option error: ${severities.join(',')} is unknown severity.
-      Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`);
-    }
-    return true;
-}
-function validateVulnType(vulnTypes) {
-    const allowedVulnTypes = /os|library/;
-    if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
-        throw new Error(`Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
-      Trivy supports os and library.`);
-    }
-    return true;
-}
-function validateArrayOption(allowedValue, options) {
-    for (const option of options) {
-        if (!allowedValue.test(option)) {
-            return false;
-        }
-    }
-    return true;
-}
 
 
 /***/ }),
