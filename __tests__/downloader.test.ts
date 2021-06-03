@@ -37,7 +37,7 @@ describe('getDownloadUrl', () => {
     const os = 'macOS';
     const result = await downloader.getDownloadUrl(version, os);
     expect(result).toMatch(
-      /releases\/download\/v0\.2\.0\/trivy_0\.2\.0_macOS-64bit\.tar\.gz$/
+      /releases\/download\/v0\.18\.3\/trivy_0\.18\.3_macOS-64bit\.tar\.gz$/
     );
   });
 
