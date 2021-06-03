@@ -7,7 +7,7 @@ on:
       - completed
 
 env:
-  IMAGE_NAME: alpine:3.10.3
+  IMAGE_NAME: knqyf263/vuln-image
 
 jobs:
   test1:
