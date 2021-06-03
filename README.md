@@ -47,12 +47,12 @@ on:
 jobs:
   scan:
     name: Daily Vulnerability Scan
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Pull docker image
         run: docker pull sample
 
-      - uses: homoluctus/gitrivy@v1.0.0
+      - uses: lazy-actions/gitrivy@master
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: sample
