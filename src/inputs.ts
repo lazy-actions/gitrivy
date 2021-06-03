@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as core from '@actions/core';
 import {
   IssueInputs,
@@ -65,9 +66,10 @@ class TrivyCmdOptionValidator implements Validator {
   validate(): void {
     this.validateSeverity();
     this.validateVulnType();
+    this.validateTemplate();
   }
 
-  private validateSeverity(): boolean {
+  private validateSeverity(): void {
     const severities = this.option.severity.split(',');
     const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
     if (!this.validateArrayOption(allowedSeverities, severities)) {
@@ -76,10 +78,9 @@ class TrivyCmdOptionValidator implements Validator {
         Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`
       );
     }
-    return true;
   }
 
-  private validateVulnType(): boolean {
+  private validateVulnType(): void {
     const vulnTypes = this.option.vulnType.split(',');
     const allowedVulnTypes = /os|library/;
     if (!this.validateArrayOption(allowedVulnTypes, vulnTypes)) {
@@ -88,7 +89,6 @@ class TrivyCmdOptionValidator implements Validator {
         Trivy supports os and library.`
       );
     }
-    return true;
   }
 
   private validateArrayOption(
@@ -101,5 +101,19 @@ class TrivyCmdOptionValidator implements Validator {
       }
     }
     return true;
+  }
+
+  private validateTemplate(): void {
+    const template = this.option.template;
+
+    const exists = fs.existsSync(template);
+    if (!exists) {
+      throw new Error(`Could not find ${template}`);
+    }
+
+    const isFile = fs.statSync(template).isFile();
+    if (!isFile) {
+      throw new Error(`${template} is not a file`);
+    }
   }
 }
