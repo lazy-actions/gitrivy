@@ -1,105 +1,75 @@
-import { spawnSync, SpawnSyncReturns } from 'child_process';
-import { TrivyOption, Vulnerability } from './interface';
-import { isIterable } from './utils';
+import { spawnSync } from 'child_process';
+import * as core from '@actions/core';
+import { TrivyOption } from './interface';
 
-export class Trivy {
-  public scan(
-    trivyPath: string,
-    image: string,
-    option: TrivyOption
-  ): Vulnerability[] | string {
-    this.validateOption(option);
+export function scan(
+  trivyPath: string,
+  image: string,
+  option: TrivyOption
+): string | undefined {
+  validateOption(option);
 
-    const args: string[] = [
-      '--severity',
-      option.severity,
-      '--vuln-type',
-      option.vulnType,
-      '--format',
-      option.format,
-      '--quiet',
-      '--no-progress',
-    ];
+  const args = [
+    '--severity',
+    option.severity,
+    '--vuln-type',
+    option.vulnType,
+    '--format',
+    'template',
+    '--template',
+    option.template,
+    '--quiet',
+    '--no-progress',
+    '--exit-code',
+    '255'
+  ];
 
-    if (option.ignoreUnfixed) args.push('--ignore-unfixed');
-    args.push(image);
+  if (option.ignoreUnfixed) args.push('--ignore-unfixed');
+  args.push(image);
 
-    const result: SpawnSyncReturns<string> = spawnSync(trivyPath, args, {
-      encoding: 'utf-8',
-    });
-
-    if (result.stdout && result.stdout.length > 0) {
-      const vulnerabilities: Vulnerability[] | string =
-        option.format === 'json' ? JSON.parse(result.stdout) : result.stdout;
-      if (vulnerabilities.length > 0) {
-        return vulnerabilities;
+  const result = spawnSync(trivyPath, args, { encoding: 'utf-8' });
+  switch (result.status) {
+    case 0:
+      core.info(`Vulnerabilities were not found.
+      Your maintenance looks good 👍`);
+    case 255:
+      if (result.stdout && result.stdout.length > 0) {
+        core.info('Vulnerabilities found !!!');
+        return result.stdout;
       }
-    }
-
-    throw new Error(`Failed vulnerability scan using Trivy.
+    default:
+      throw new Error(`Failed to execute Trivy command.
+      exit code: ${result.status}
       stdout: ${result.stdout}
-      stderr: ${result.stderr}
-      error: ${result.error}
-    `);
+      stderr: ${result.stderr}`);
   }
+}
 
-  public parse(image: string, vulnerabilities: Vulnerability[]): string {
-    let issueContent: string = '';
+function validateOption(option: TrivyOption): void {
+  validateSeverity(option.severity.split(','));
+  validateVulnType(option.vulnType.split(','));
+}
 
-    for (const vuln of vulnerabilities) {
-      if (vuln.Vulnerabilities === null) continue;
-
-      issueContent += `## ${vuln.Target}\n`;
-      let vulnTable: string = '|Title|Severity|CVE|Package Name|';
-      vulnTable += 'Installed Version|Fixed Version|References|\n';
-      vulnTable += '|:--:|:--:|:--:|:--:|:--:|:--:|:--|\n';
-
-      for (const cve of vuln.Vulnerabilities) {
-        vulnTable += `|${cve.Title || 'N/A'}|${cve.Severity || 'N/A'}`;
-        vulnTable += `|${cve.VulnerabilityID || 'N/A'}|${cve.PkgName || 'N/A'}`;
-        vulnTable += `|${cve.InstalledVersion || 'N/A'}|${cve.FixedVersion ||
-          'N/A'}|`;
-
-        const references = cve.References;
-        if (!isIterable(references)) continue;
-        for (const reference of references) {
-          vulnTable += `${reference || 'N/A'}<br>`;
-        }
-
-        vulnTable.replace(/<br>$/, '|\n');
-      }
-      issueContent += `${vulnTable}\n\n`;
-    }
-
-    return issueContent ? `_(image scanned: \`${image}\`)_\n\n${issueContent}` : issueContent;
+function validateSeverity(severities: string[]): boolean {
+  const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
+  if (!validateArrayOption(allowedSeverities, severities)) {
+    throw new Error(
+      `Trivy option error: ${severities.join(',')} is unknown severity.
+      Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`
+    );
   }
+  return true;
+}
 
-  private validateOption(option: TrivyOption): void {
-    this.validateSeverity(option.severity.split(','));
-    this.validateVulnType(option.vulnType.split(','));
+function validateVulnType(vulnTypes: string[]): boolean {
+  const allowedVulnTypes = /os|library/;
+  if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
+    throw new Error(
+      `Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
+      Trivy supports os and library.`
+    );
   }
-
-  private validateSeverity(severities: string[]): boolean {
-    const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-    if (!validateArrayOption(allowedSeverities, severities)) {
-      throw new Error(
-        `Trivy option error: ${severities.join(',')} is unknown severity.
-        Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`
-      );
-    }
-    return true;
-  }
-
-  private validateVulnType(vulnTypes: string[]): boolean {
-    const allowedVulnTypes = /os|library/;
-    if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
-      throw new Error(
-        `Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
-        Trivy supports os and library.`
-      );
-    }
-    return true;
-  }
+  return true;
 }
 
 function validateArrayOption(allowedValue: RegExp, options: string[]): boolean {

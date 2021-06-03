@@ -21,13 +21,12 @@ inputs:
     description: 'Ignore unfixed vulnerabilities [true, false]'
     default: 'false'
     required: false
-  issue:
-      description: 'Decide whether to create a issue when vulnerabilities are found [true, false]'
-      default: 'true'
-      required: false
+  template:
+    description: 'Trivy --template option'
+    required: false
   token:
     description: 'GitHub access token used to create a issue'
-    required: false
+    required: true
   issue_title:
     description: 'Issue title'
     default: 'Security Alert'
