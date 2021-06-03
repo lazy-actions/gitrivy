@@ -1,0 +1,57 @@
+name: Integration Test
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+
+env:
+  IMAGE_NAME: alpine:3.10.3
+
+jobs:
+  test1:
+    name: Test parameters
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Pull docker image
+      run: docker pull ${{ env.IMAGE_NAME }}
+
+    - uses: ./
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        image: ${{ env.IMAGE_NAME }}
+        issue_label: trivy,vulnerability,test
+        issue_title: Security Alert Test
+        issue_assignee: homoluctus
+
+  test2:
+    name: Getting image name from enviroment variable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Pull docker image
+        run: docker pull ${{ env.IMAGE_NAME }}
+
+      - uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue_label: trivy,vulnerability,test
+          issue_title: Security Alert Test
+          issue_assignee: homoluctus
+
+  test3:
+    name: Not create issue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Pull docker image
+        run: docker pull ${{ env.IMAGE_NAME }}
+
+      - uses: ./
+        with:
+          issue: 'false'
