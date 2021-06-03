@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import { Trivy, Downloader } from './trivy';
-import { createIssue } from './issue';
+import { createOrUpdateIssue } from './issue';
 import {
   TrivyOption,
   IssueOption,
@@ -47,7 +47,7 @@ async function run() {
       return;
     }
 
-    const issueContent: string = trivy.parse(result as Vulnerability[]);
+    const issueContent: string = trivy.parse(image, result as Vulnerability[]);
 
     if (issueContent === '') {
       core.info(
@@ -69,9 +69,13 @@ async function run() {
         .split(','),
     };
     const token: string = core.getInput('token', { required: true });
-    const output: IssueResponse = await createIssue(token, issueOption);
+    const output: IssueResponse = await createOrUpdateIssue(token, image, issueOption);
     core.setOutput('html_url', output.htmlUrl);
     core.setOutput('issue_number', output.issueNumber.toString());
+
+    if (core.getInput("fail_on_vulnerabilities") === 'true') {
+      core.setFailed(`Vulnerabilities found.\n${issueContent}`)
+    }
   } catch (error) {
     core.error(error.stack);
     core.setFailed(error.message);
