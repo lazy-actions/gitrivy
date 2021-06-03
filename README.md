@@ -60,7 +60,7 @@ jobs:
       - name: Pull docker image
         run: docker pull sample
 
-      - uses: lazy-actions/gitrivy@v2
+      - uses: lazy-actions/gitrivy@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: sample
