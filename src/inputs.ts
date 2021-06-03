@@ -24,8 +24,7 @@ export class Inputs {
         severity: core.getInput('severity').replace(/\s+/g, ''),
         vulnType: core.getInput('vuln_type').replace(/\s+/g, ''),
         ignoreUnfixed: core.getInput('ignore_unfixed').toLowerCase() === 'true',
-        template:
-          core.getInput('template') || `@${__dirname}/template/default.tpl`
+        template: core.getInput('template') || `@${__dirname}/default.tpl`
       }
     };
 
