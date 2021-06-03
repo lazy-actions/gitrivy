@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as core from '@actions/core';
 import { TrivyCmdOption, Validator } from './interface';
 
 export class TrivyCmdOptionValidator implements Validator {
@@ -49,7 +50,12 @@ export class TrivyCmdOptionValidator implements Validator {
   }
 
   private validateTemplate(): void {
-    const template = this.option.template;
+    if (!this.option.template.startsWith('@')) {
+      core.warning('template parameter prefix must be "@"');
+      this.option.template = `@${this.option.template}`;
+    }
+
+    const template = this.option.template.replace('@', '');
 
     const exists = fs.existsSync(template);
     if (!exists) {

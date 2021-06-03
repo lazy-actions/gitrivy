@@ -2,9 +2,6 @@
 <table>
 {{- range . }}
   <tr class="group-header"><th colspan="6">{{ escapeXML .Type }}</th></tr>
-  {{- if (eq (len .Vulnerabilities) 0) }}
-  <tr><th colspan="6">No Vulnerabilities found</th></tr>
-  {{- else }}
   <tr class="sub-header">
     <th>Package</th>
     <th>Vulnerability ID</th>
@@ -26,7 +23,6 @@
       {{- end }}
     </td>
   </tr>
-    {{- end }}
   {{- end }}
 {{- end }}
 </table>
