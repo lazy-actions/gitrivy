@@ -1,10 +1,9 @@
 name: Integration Test
 
 on:
-  workflow_run:
-    workflows: ["Build"]
-    types:
-      - completed
+  pull_request:
+    paths:
+      - "dist"
 
 env:
   IMAGE_NAME: knqyf263/vuln-image
