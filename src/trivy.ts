@@ -1,14 +1,12 @@
 import { spawnSync } from 'child_process';
 import * as core from '@actions/core';
-import { TrivyOption } from './interface';
+import { TrivyCmdOption } from './interface';
 
 export function scan(
   trivyPath: string,
   image: string,
-  option: TrivyOption
+  option: TrivyCmdOption
 ): string | undefined {
-  validateOption(option);
-
   const args = [
     '--severity',
     option.severity,
@@ -43,40 +41,4 @@ export function scan(
       stdout: ${result.stdout}
       stderr: ${result.stderr}`);
   }
-}
-
-function validateOption(option: TrivyOption): void {
-  validateSeverity(option.severity.split(','));
-  validateVulnType(option.vulnType.split(','));
-}
-
-function validateSeverity(severities: string[]): boolean {
-  const allowedSeverities = /UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL/;
-  if (!validateArrayOption(allowedSeverities, severities)) {
-    throw new Error(
-      `Trivy option error: ${severities.join(',')} is unknown severity.
-      Trivy supports UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL.`
-    );
-  }
-  return true;
-}
-
-function validateVulnType(vulnTypes: string[]): boolean {
-  const allowedVulnTypes = /os|library/;
-  if (!validateArrayOption(allowedVulnTypes, vulnTypes)) {
-    throw new Error(
-      `Trivy option error: ${vulnTypes.join(',')} is unknown vuln-type.
-      Trivy supports os and library.`
-    );
-  }
-  return true;
-}
-
-function validateArrayOption(allowedValue: RegExp, options: string[]): boolean {
-  for (const option of options) {
-    if (!allowedValue.test(option)) {
-      return false;
-    }
-  }
-  return true;
 }

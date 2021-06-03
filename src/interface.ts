@@ -1,8 +1,15 @@
-export interface IssueOption {
+export interface Validator {
+  validate(): void;
+}
+
+export interface IssueInputs {
   title: string;
-  body: string;
   labels?: string[];
   assignees?: string[];
+}
+
+export interface IssueOption extends IssueInputs {
+  body: string;
 }
 
 export interface IssueResponse {
@@ -10,7 +17,12 @@ export interface IssueResponse {
   htmlUrl: string;
 }
 
-export interface TrivyOption {
+export interface TrivyInputs {
+  version: string;
+  option: TrivyCmdOption;
+}
+
+export interface TrivyCmdOption {
   severity: string;
   vulnType: string;
   ignoreUnfixed: boolean;

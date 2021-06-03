@@ -1,5 +1,8 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import { Downloader } from '../src/downloader';
+
+export const template = path.join(__dirname, '../src/template/default.tpl');
 
 const downloader = new Downloader();
 
