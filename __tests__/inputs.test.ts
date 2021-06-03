@@ -1,9 +1,8 @@
-import * as path from 'path';
 import { Inputs } from '../src/inputs';
+import { template } from './helper';
 
 describe('Inputs class Test', () => {
   const initEnv = process.env;
-  const template = path.join(__dirname, '../src/template/default.tpl');
 
   beforeEach(() => {
     process.env = {
@@ -33,27 +32,5 @@ describe('Inputs class Test', () => {
     };
     const inputs = new Inputs();
     expect(() => inputs.validate()).not.toThrow();
-  });
-
-  test('Invalid severity', () => {
-    process.env['INPUT_SEVERITY'] = '?';
-    const inputs = new Inputs();
-    expect(() => inputs.validate()).toThrow(
-      'Trivy option error: ? is unknown severity.'
-    );
-  });
-
-  test('Invalid vuln_type', () => {
-    process.env['INPUT_VULN_TYPE'] = '?';
-    const inputs = new Inputs();
-    expect(() => inputs.validate()).toThrow(
-      'Trivy option error: ? is unknown vuln-type'
-    );
-  });
-
-  test('Invalid template', () => {
-    process.env['INPUT_TEMPLATE'] = '?';
-    const inputs = new Inputs();
-    expect(() => inputs.validate()).toThrow('Could not find ?');
   });
 });
