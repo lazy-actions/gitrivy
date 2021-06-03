@@ -11,9 +11,7 @@ If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 
 ![image](./assets/img/issue.png)
 
-## Usage
-
-### Inputs
+## Inputs
 
 |Parameter|Required|Default Value|Description|
 |:--:|:--:|:--:|:--|
@@ -22,21 +20,21 @@ If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 |severity|False|HIGH,CRITICAL|Severities of vulnerabilities (separated by commma)|
 |vuln_type|False|os,library|Scan target are os and / or library (separated by commma)|
 |ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Please specify `true` or `false`|
-|issue|False|true|Decide whether creating issue when vulnerabilities are found by trivy.<br>Please specify `true` or `false`|
-|token|True if issue parameter is true else False|N/A|GitHub Access Token.<br>${{ secrets.GITHUB_TOKEN }} is recommended.|
+|template|False|N/A|Trivy --template option<br>By default, it uses src/template/default.tpl which is based on [contrib/html.tpl](https://github.com/aquasecurity/trivy/blob/main/contrib/html.tpl)<br>reference: [Report Formats - Trivy](https://aquasecurity.github.io/trivy/v0.18.3/examples/report/#template)|
+|token|True|N/A|GitHub Access Token.<br>${{ secrets.GITHUB_TOKEN }} is recommended.|
 |issue_title|False|Security Alert|Issue title|
 |issue_label|False|trivy,vulnerability|Issue label (separated by commma)|
 |issue_assignee|False|N/A|Issue assignee (separated by commma)|
 |fail_on_vulnerabilities|False|false|Whether the action should fail if any vulnerabilities were found.|
 
-### Outputs
+## Outputs
 
 |Parameter|Description|
 |:--:|:--|
 |html_url|The URL to view the issue|
 |issue_number|The created issue number|
 
-## Example Workflow
+## Example
 
 Detect your docker image vulnerability everyday at 9:00 (UTC).
 
@@ -55,7 +53,7 @@ jobs:
       - name: Pull docker image
         run: docker pull sample
 
-      - uses: lazy-actions/gitrivy@main
+      - uses: lazy-actions/gitrivy@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           image: sample
