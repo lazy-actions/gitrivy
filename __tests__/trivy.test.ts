@@ -5,7 +5,7 @@ import { TrivyCmdOption } from '../src/interface';
 import { removeTrivyCmd } from './helper';
 
 const downloader = new Downloader();
-const template = `@${path.join(__dirname, '../src/template/default.tpl')}`;
+const template = `@${path.join(__dirname, '../src/default.tpl')}`;
 
 describe('Trivy scan', () => {
   let trivyPath: string;

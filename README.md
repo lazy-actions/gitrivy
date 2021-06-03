@@ -21,7 +21,7 @@ If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 |severity|False|HIGH,CRITICAL|Severities of vulnerabilities (separated by commma)|
 |vuln_type|False|os,library|Scan target are os and / or library (separated by commma)|
 |ignore_unfixed|False|false|Ignore unfixed vulnerabilities<br>Please specify `true` or `false`|
-|template|False|N/A|Trivy --template option<br>By default, it uses src/template/default.tpl which is based on [contrib/html.tpl](https://github.com/aquasecurity/trivy/blob/main/contrib/html.tpl)<br>reference: [Report Formats - Trivy](https://aquasecurity.github.io/trivy/v0.18.3/examples/report/#template)|
+|template|False|N/A|Trivy --template option<br>By default, it uses src/default.tpl which is based on [contrib/html.tpl](https://github.com/aquasecurity/trivy/blob/main/contrib/html.tpl)<br>reference: [Report Formats - Trivy](https://aquasecurity.github.io/trivy/v0.18.3/examples/report/#template)|
 |issue_title|False|Security Alert|Issue title|
 |issue_label|False|trivy,vulnerability|Issue label (separated by commma)|
 |issue_assignee|False|N/A|Issue assignee (separated by commma)|
