@@ -1,98 +1,15 @@
-import { Downloader, Trivy } from '../src/trivy';
-import { unlinkSync, writeFileSync } from 'fs';
+import * as fs from 'fs';
+import { Downloader } from '../src/downloader';
+import { Trivy } from '../src/trivy';
 import { Vulnerability, TrivyOption } from '../src/interface';
+import { removeTrivyCmd } from './helper';
 
 const downloader = new Downloader();
 const trivy = new Trivy();
 
-function removeTrivyCmd(path: string) {
-  path = path.replace(/\/trivy$/, '');
-  if (downloader.trivyExists(path)) {
-    unlinkSync(`${path}/trivy`);
-  }
-}
-
-describe('Platform', () => {
-  test('is Liniux', () => {
-    const result = downloader['checkPlatform']('linux');
-    expect(result).toBe('Linux');
-  });
-
-  test('is Darwin', () => {
-    const result = downloader['checkPlatform']('darwin');
-    expect(result).toBe('macOS');
-  });
-
-  test('is not linux and darwin', () => {
-    expect(() => {
-      downloader['checkPlatform']('other');
-    }).toThrowError('Sorry, other is not supported.');
-  });
-});
-
-describe('getDownloadUrl', () => {
-  test('with latest version and linux', async () => {
-    const version = 'latest';
-    const os = 'Linux';
-    const result = await downloader['getDownloadUrl'](version, os);
-    expect(result).toMatch(
-      /releases\/download\/v[0-9]+\.[0-9]+\.[0-9]+\/trivy_[0-9]+\.[0-9]+\.[0-9]+_Linux-64bit\.tar\.gz$/
-    );
-  });
-
-  test('with 0.2.0 and macOS', async () => {
-    const version = '0.2.0';
-    const os = 'macOS';
-    const result = await downloader['getDownloadUrl'](version, os);
-    expect(result).toMatch(
-      /releases\/download\/v0\.2\.0\/trivy_0\.2\.0_macOS-64bit\.tar\.gz$/
-    );
-  });
-
-  test('with non-supported version', async () => {
-    const version = 'none';
-    const os = 'Linux';
-    await expect(
-      downloader['getDownloadUrl'](version, os)
-    ).rejects.toThrowError(
-      'Cloud not be found a Trivy asset that you specified.'
-    );
-  });
-
-  test('with non-supported os', async () => {
-    const version = 'latest';
-    const os = 'none';
-    await expect(
-      downloader['getDownloadUrl'](version, os)
-    ).rejects.toThrowError(
-      'Cloud not be found a Trivy asset that you specified.'
-    );
-  });
-});
-
-describe('Download trivy command', () => {
-  afterAll(() => {
-    removeTrivyCmd('__tests__');
-  });
-
-  test('with valid download URL and save in __tests__', async () => {
-    let downloadUrl = 'https://github.com/aquasecurity/trivy';
-    downloadUrl += '/releases/download/v0.2.1/trivy_0.2.1_Linux-64bit.tar.gz';
-    const savePath = './__tests__';
-    await expect(
-      downloader['downloadTrivyCmd'](downloadUrl, savePath)
-    ).resolves.toEqual(`${savePath}/trivy`);
-  }, 300000);
-
-  test('with invalid download URL', async () => {
-    const downloadUrl = 'https://github.com/this_is_invalid';
-    await expect(downloader['downloadTrivyCmd'](downloadUrl)).rejects.toThrow();
-  });
-});
-
 describe('Trivy command', () => {
   beforeAll(() => {
-    writeFileSync('./trivy', '');
+    fs.writeFileSync('./trivy', '');
   });
 
   afterAll(() => {
@@ -115,9 +32,9 @@ describe('Trivy scan', () => {
   const image: string = 'alpine:3.10';
 
   beforeAll(async () => {
-    trivyPath = !downloader.trivyExists('./__tests__')
-      ? await downloader.download('latest', './__tests__')
-      : './__tests__/trivy';
+    trivyPath = !downloader.trivyExists(__dirname)
+      ? await downloader.download('latest', __dirname)
+      : `${__dirname}/trivy`;
   }, 300000);
 
   afterAll(() => {

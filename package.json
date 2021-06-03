@@ -22,8 +22,9 @@
   "author": "homoluctus",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.2.6",
-    "@actions/github": "^1.1.0",
+    "@actions/core": "^1.2.7",
+    "@actions/github": "^4.0.0",
+    "@octokit/rest": "^18.5.6",
     "node-fetch": "^2.6.1",
     "tar": "^5.0.5"
   },
