@@ -1,12 +1,15 @@
-# Gitrivy
+# Gitrivy (GitHub Issue + Trivy Action)
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/lazy-actions/gitrivy/Build)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/lazy-actions/gitrivy/Integration%20Test?label=Integration%20Test)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/lazy-actions/gitrivy/Unit%20Test?label=Unit%20Test)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/homoluctus/gitrivy?color=brightgreen&include_prereleases)
-![GitHub](https://img.shields.io/github/license/homoluctus/gitrivy?color=brightgreen)
+![LICENSE](https://img.shields.io/github/license/homoluctus/gitrivy?color=brightgreen)
 
 This is a GitHub Actions to scan vulnerability using [Trivy](https://github.com/aquasecurity/trivy).<br>
 If vulnerabilities are found by Trivy, it creates the following GitHub Issue.
 
-![image](https://github.com/homoluctus/gitrivy/blob/master/issue.png)
+![image](./assets/img/issue.png)
 
 ## Usage
 
