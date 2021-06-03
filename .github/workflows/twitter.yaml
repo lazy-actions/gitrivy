@@ -1,0 +1,26 @@
+name: Twitter
+
+on:
+  release:
+    types:
+      - "published"
+
+jobs:
+  tweet:
+    name: Tweet New Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: lazy-actions/tweet-action@main
+        with:
+          data: |
+            {
+              "version": "${{ github.event.release.tag_name }}",
+              "url": "${{ github.event.release.html_url }}"
+            }
+          template_filename: .github/workflows/tweet-action/template.ejs
+          oauth_consumer_key: ${{ secrets.TWITTER_CONSUMER_KEY }}
+          oauth_consumer_secret: ${{ secrets.TWITTER_CONSUMER_SECRET }}
+          oauth_token: ${{ secrets.TWITTER_TOKEN }}
+          oauth_token_secret: ${{ secrets.TWITTER_TOKEN_SECRET }}
