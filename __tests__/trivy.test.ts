@@ -5,7 +5,7 @@ import { TrivyCmdOption } from '../src/interface';
 import { removeTrivyCmd } from './helper';
 
 const downloader = new Downloader();
-const template = path.join(__dirname, '../src/template/default.tpl');
+const template = `@${path.join(__dirname, '../src/template/default.tpl')}`;
 
 describe('Trivy scan', () => {
   let trivyPath: string;
@@ -29,7 +29,9 @@ describe('Trivy scan', () => {
       template
     };
     const result = scan(trivyPath, image, option) as string;
-    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result).toContain(
+      'knqyf263/vuln-image (alpine 3.7.1) - Trivy Report'
+    );
   });
 
   test('without ignoreUnfixed', () => {
@@ -40,6 +42,8 @@ describe('Trivy scan', () => {
       template
     };
     const result: string = scan(trivyPath, image, option) as string;
-    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result).toContain(
+      'knqyf263/vuln-image (alpine 3.7.1) - Trivy Report'
+    );
   });
 });
