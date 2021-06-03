@@ -1,5 +1,10 @@
 import * as core from '@actions/core';
-import { TrivyInputs, TrivyCmdOption, IssueInputs } from './interface';
+import {
+  IssueInputs,
+  TrivyInputs,
+  TrivyCmdOption,
+  Validator
+} from './interface';
 
 export class Inputs {
   token: string;
@@ -50,7 +55,7 @@ export class Inputs {
   }
 }
 
-class TrivyCmdOptionValidator {
+class TrivyCmdOptionValidator implements Validator {
   option: TrivyCmdOption;
 
   constructor(option: TrivyCmdOption) {

@@ -1,3 +1,7 @@
+export interface Validator {
+  validate(): void;
+}
+
 export interface IssueInputs {
   title: string;
   labels?: string[];
