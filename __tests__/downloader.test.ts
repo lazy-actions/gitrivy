@@ -97,3 +97,23 @@ describe('Trivy command', () => {
     expect(result).toBeFalsy();
   });
 });
+
+describe('Exists trivy command', () => {
+  beforeAll(() => {
+    fs.writeFileSync('./trivy', '');
+  });
+
+  afterAll(() => {
+    removeTrivyCmd('.');
+  });
+
+  test('exists', () => {
+    const result = downloader.trivyExists('.');
+    expect(result).toBeTruthy();
+  });
+
+  test('does not exist', () => {
+    const result = downloader.trivyExists('src');
+    expect(result).toBeFalsy();
+  });
+});
