@@ -3,7 +3,7 @@ name: Integration Test
 on:
   pull_request:
     paths:
-      - "dist"
+      - "dist/**"
 
 env:
   IMAGE_NAME: knqyf263/vuln-image
