@@ -3,14 +3,15 @@ name: Integration Test
 on:
   pull_request:
     paths:
-      - "dist/**"
+      - 'dist/**'
+  workflow_dispatch:
 
 env:
   IMAGE_NAME: knqyf263/vuln-image
 
 jobs:
-  test1:
-    name: Test parameters
+  test:
+    name: Integration Test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -25,32 +26,3 @@ jobs:
         issue_label: trivy,vulnerability,test
         issue_title: Security Alert Test
         issue_assignee: homoluctus
-
-  test2:
-    name: Getting image name from enviroment variable
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Pull docker image
-        run: docker pull ${{ env.IMAGE_NAME }}
-
-      - uses: ./
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue_label: trivy,vulnerability,test
-          issue_title: Security Alert Test
-          issue_assignee: homoluctus
-
-  test3:
-    name: Not create issue
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Pull docker image
-        run: docker pull ${{ env.IMAGE_NAME }}
-
-      - uses: ./
-        with:
-          issue: 'false'
