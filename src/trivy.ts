@@ -30,6 +30,7 @@ export function scan(
     case 0:
       core.info(`Vulnerabilities were not found.
       Your maintenance looks good 👍`);
+      break;
     case 255:
       if (result.stdout && result.stdout.length > 0) {
         core.info('Vulnerabilities found !!!');
