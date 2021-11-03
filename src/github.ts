@@ -7,7 +7,10 @@ export class GitHub {
   client: Octokit;
 
   constructor(token: string) {
-    this.client = new Octokit({ auth: token });
+    this.client = new Octokit({
+      auth: token,
+      baseUrl: process.env['GITHUB_SERVER_URL'] + "/api/v3" || 'https://github.com/api/v3',
+    });
   }
 
   async getTrivyIssues(image: string, labels: string[] | undefined) {
