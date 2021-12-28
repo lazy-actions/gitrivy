@@ -8,6 +8,7 @@ export function scan(
   option: TrivyCmdOption
 ): string | undefined {
   const args = [
+    'image',
     '--severity',
     option.severity,
     '--vuln-type',
